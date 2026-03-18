@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>CENSECO 2026 - PLANNING STAFF (CLOUD)</title>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/vis-timeline@latest/standalone/umd/vis-timeline-graph2d.min.js"></script>
+    <link href="https://unpkg.com/vis-timeline@latest/styles/vis-timeline-graph2d.min.css" rel="stylesheet" />
+    
+    <style>
+        :root {
+            --bg: #f1f5f9; --fids: #ffcc00; --accent: #4338ca; --success: #15803d; 
+            --danger: #dc2626; --piquet: #10b981; --standard-blue: #0000FF;
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        header { background: #000; color: #fff; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--fids); z-index: 1001; }
+        .nav-main { display: flex; background: #fff; border-bottom: 1px solid #cbd5e1; flex-shrink: 0; }
+        .nav-btn { padding: 15px 25px; cursor: pointer; border: none; background: none; font-weight: bold; opacity: 0.5; font-size: 0.9em; }
+        .nav-btn.active { opacity: 1; border-bottom: 3px solid var(--accent); color: var(--accent); }
+
+        .container { flex: 1; overflow-y: auto; padding: 20px; position: relative; }
+        .page { display: none; } .page.active { display: block; }
+
+        .card { background: #e2e8f0; padding: 18px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 20px; }
+        .row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 10px; }
+        .field { display: flex; flex-direction: column; gap: 5px; }
+        .field label { font-size: 0.65em; font-weight: 900; color: #475569; text-transform: uppercase; }
+        input, select { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 800; background: #fff; }
+
+        /* TABLE REGISTRE */
+        .t-table { width: 100%; border-collapse: separate; border-spacing: 0 5px; }
+        .t-row td { background: #fff; padding: 12px; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; }
+        .t-row td:first-child { border-radius: 8px 0 0 8px; border-left: 1px solid #cbd5e1; }
+        .t-row td:last-child { border-radius: 0 8px 8px 0; border-right: 1px solid #cbd5e1; text-align: right; }
+
+        /* TIMELINE STAFF UI */
+        .vis-container { background: #0f172a !important; border-radius: 10px; border: 2px solid #334155; height: 600px; }
+        .vis-label { color: var(--fids) !important; font-weight: bold; background: #1e293b !important; border-bottom: 1px solid #334155 !important; }
+        .vis-time-axis .vis-text { color: var(--fids) !important; font-weight: bold; }
+        
+        .vis-item { border-radius: 4px !important; border-width: 0 0 0 6px !important; font-weight: 800; color: white !important; font-size: 0.9em; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .vis-item.vis-range { background-color: var(--standard-blue) !important; border-color: #000099 !important; }
+        .vis-item.piquet-style { background-color: var(--piquet) !important; border-color: #065f46 !important; border-width: 0 0 0 6px !important; }
+        .vis-item.vis-background.alerte-vide { background-color: rgba(220, 38, 38, 0.12) !important; z-index: 1; border: none !important; }
+
+        /* NAV FLOTTANTE */
+        .floating-nav { position: absolute; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 10px; z-index: 1000; }
+        .btn-float { background: #1e293b; color: var(--fids); border: 2px solid #fff; padding: 12px 20px; border-radius: 30px; font-weight: 900; cursor: pointer; font-size: 0.75em; text-transform: uppercase; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .btn-float:hover { background: #000; }
+
+        .btn-v { background: var(--success); color: #fff; border: none; padding: 12px 20px; border-radius: 8px; font-weight: 900; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="font-weight: 900;">CENSECO 2026 - PLANNING STAFF (CLOUD)</div>
+    <div id="clock" style="font-family: monospace; color: var(--fids); font-size: 1.2em;">00:00:00</div>
+</header>
+
+<div class="nav-main">
+    <button class="nav-btn active" onclick="showPage('registre', event)">👤 REGISTRE PERSONNEL</button>
+    <button class="nav-btn" onclick="showPage('planning', event)">🗓️ TABLEAU DE GARDE (24H)</button>
+</div>
+
+<div class="container">
+    
+    <div id="registre" class="page active">
+        <div class="card">
+            <div class="form-row row">
+                <div class="field"><label>Grade</label><input type="text" id="pGrade" placeholder="ex: CDT" style="width:80px;"></div>
+                <div class="field" style="flex:1;"><label>Nom & Prénom</label><input type="text" id="pIdentite" placeholder="NOM Prénom"></div>
+                <div class="field"><label>Fonction (Qualif)</label>
+                    <select id="pFonction">
+                        <option value="C CenSeco">C CenSeco</option>
+                        <option value="Adj C CenSeco">Adj C CenSeco</option>
+                        <option value="AIC C CenSeco">AIC C CenSeco</option>
+                        <option value="AIC Régulateur">AIC Régulateur</option>
+                        <option value="Régulateur">Régulateur</option>
+                        <option value="Dispatch hélico">Dispatch hélico</option>
+                        <option value="Guide">Guide</option>
+                    </select>
+                </div>
+                <button class="btn-v" onclick="addStaff()">+ ENREGISTRER</button>
+            </div>
+        </div>
+        <table class="t-table"><tbody id="staffList"></tbody></table>
+    </div>
+
+    <div id="planning" class="page">
+        <div class="card" style="background:#fff;">
+            <div class="row">
+                <div class="field"><label>Membre du personnel</label><select id="sel-staff" style="width:220px;"></select></div>
+                <div class="field"><label>Poste occupé</label>
+                    <select id="sel-poste">
+                        <option value="C">C CenSeco</option>
+                        <option value="ADJ">Adj C CenSeco</option>
+                        <option value="AIC_C">AIC C CenSeco</option>
+                        <option value="AIC_R1">AIC Régulateur 1</option>
+                        <option value="AIC_R2">AIC Régulateur 2</option>
+                        <option value="R1">Régulateur 1</option>
+                        <option value="R2">Régulateur 2</option>
+                        <option value="HELI">Dispatch hélico</option>
+                        <option value="GUIDE">Guide</option>
+                        <option value="PIQUET">🚩 PIQUET (Multi)</option>
+                    </select>
+                </div>
+                <div class="field"><label>Début</label><input type="datetime-local" id="gStart"></div>
+                <div class="field"><label>Fin</label><input type="datetime-local" id="gEnd"></div>
+                <button class="btn-v" onclick="assignGarde()">➕ AFFECTER</button>
+            </div>
+        </div>
+        <div id="vis-staff" class="vis-container"></div>
+        
+        <div class="floating-nav">
+            <button class="btn-float" style="background:var(--danger); color:white;" onclick="jumpTo(0)">🎯 Maintenant</button>
+            <button class="btn-float" onclick="jumpTo(12)">🕒 H +12h</button>
+            <button class="btn-float" onclick="jumpTo(24)">🕒 H +24h</button>
+        </div>
+    </div>
+</div>
+
+<div class="footer">Une création DJA’WEB avec l’aide de Gemini IA</div>
+
+<script>
+    // CONFIGURATION FIREBASE
+    const firebaseConfig = {
+        apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU",
+        authDomain: "censeco-2026.firebaseapp.com",
+        databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "censeco-2026",
+        storageBucket: "censeco-2026.firebasestorage.app",
+        messagingSenderId: "1030152312862",
+        appId: "1:1030152312862:web:9618132ec2bcfc7831b60f"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const dbRef = firebase.database().ref('planning_staff');
+
+    let personnel = JSON.parse(localStorage.getItem('db_staff_cloud')) || [];
+    let gardes = JSON.parse(localStorage.getItem('db_gardes_cloud')) || [];
+    let timelineStaff;
+    const itemsStaff = new vis.DataSet([]);
+    const groupsStaff = new vis.DataSet([
+        { id: 'C', content: 'C CenSeco' }, { id: 'ADJ', content: 'Adj C CenSeco' },
+        { id: 'AIC_C', content: 'AIC C CenSeco' }, { id: 'AIC_R1', content: 'AIC Régulateur 1' },
+        { id: 'AIC_R2', content: 'AIC Régulateur 2' }, { id: 'R1', content: 'Régulateur 1' },
+        { id: 'R2', content: 'Régulateur 2' }, { id: 'HELI', content: 'Dispatch hélico' },
+        { id: 'GUIDE', content: 'Guide' }, { id: 'PIQUET', content: '🚩 PIQUET', stack: true }
+    ]);
+
+    window.onload = () => {
+        initTimeline();
+        
+        // Synchro Cloud au démarrage
+        dbRef.on('value', (snapshot) => {
+            const cloud = snapshot.val();
+            if(cloud) {
+                personnel = cloud.personnel || [];
+                gardes = cloud.gardes || [];
+                renderAll();
+                itemsStaff.clear();
+                addBackgroundAlerts();
+                if(gardes.length) itemsStaff.add(gardes);
+            } else {
+                renderAll();
+            }
+        });
+
+        setCurrentTimeInputs();
+        setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString('fr-FR'); }, 1000);
+    };
+
+    function addStaff() {
+        const iden = document.getElementById('pIdentite').value;
+        if(!iden) return alert("Nom requis");
+        personnel.push({
+            id: Date.now(),
+            grade: document.getElementById('pGrade').value.toUpperCase(),
+            identite: iden,
+            fonction: document.getElementById('pFonction').value
+        });
+        saveData();
+        document.getElementById('pIdentite').value = '';
+    }
+
+    function assignGarde() {
+        const staff = personnel.find(x => x.id == document.getElementById('sel-staff').value);
+        const poste = document.getElementById('sel-poste').value;
+        const start = document.getElementById('gStart').value;
+        const end = document.getElementById('gEnd').value;
+        if(!staff || !start || !end) return alert("Données manquantes");
+
+        const newGarde = {
+            id: Date.now(),
+            group: poste,
+            start: new Date(start),
+            end: new Date(end),
+            content: `[${staff.grade}] ${staff.identite}`,
+            className: poste === 'PIQUET' ? 'piquet-style' : ''
+        };
+        itemsStaff.add(newGarde);
+        saveGardesFromTimeline();
+    }
+
+    function saveData() {
+        localStorage.setItem('db_staff_cloud', JSON.stringify(personnel));
+        updateFirebase();
+        renderAll();
+    }
+
+    function saveGardesFromTimeline() {
+        gardes = itemsStaff.get({ filter: (i) => i.type !== 'background' });
+        localStorage.setItem('db_gardes_cloud', JSON.stringify(gardes));
+        updateFirebase();
+    }
+
+    function updateFirebase() {
+        dbRef.set({
+            personnel: personnel,
+            gardes: gardes,
+            lastUpdate: Date.now()
+        });
+    }
+
+    function renderAll() {
+        const list = document.getElementById('staffList');
+        const select = document.getElementById('sel-staff');
+        list.innerHTML = ''; select.innerHTML = '';
+        
+        personnel.sort((a,b) => a.identite.localeCompare(b.identite)).forEach(m => {
+            list.innerHTML += `<tr class="t-row">
+                <td><b>[${m.grade}]</b> ${m.identite}</td>
+                <td style="color:var(--accent); font-weight:bold;">${m.fonction}</td>
+                <td><button onclick="delStaff(${m.id})" style="border:none; background:none; color:var(--danger); cursor:pointer;">🗑️</button></td>
+            </tr>`;
+            select.add(new Option(`[${m.grade}] ${m.identite}`, m.id));
+        });
+    }
+
+    function delStaff(id) {
+        if(confirm("Supprimer ce membre ?")) {
+            personnel = personnel.filter(x => x.id !== id);
+            saveData();
+        }
+    }
+
+    function initTimeline() {
+        timelineStaff = new vis.Timeline(document.getElementById('vis-staff'), itemsStaff, groupsStaff, {
+            stack: true, editable: true, showCurrentTime: true,
+            snap: (date) => Math.round(date / (15 * 60 * 1000)) * (15 * 60 * 1000),
+            format: { minorLabels: { minute: 'HH:mm', hour: 'HH:mm' } }
+        });
+
+        timelineStaff.on('itemchanged', saveGardesFromTimeline);
+        timelineStaff.on('itemremoved', saveGardesFromTimeline);
+        jumpTo(0);
+    }
+
+    function addBackgroundAlerts() {
+        const sT = new Date().setHours(0,0,0,0);
+        const eT = sT + (72 * 3600000);
+        groupsStaff.get().filter(g => g.id !== 'PIQUET').forEach(g => {
+            itemsStaff.add({ id: 'bg_'+g.id, group: g.id, start: sT, end: eT, type: 'background', className: 'alerte-vide' });
+        });
+    }
+
+    function jumpTo(h) {
+        if(!timelineStaff) return;
+        const target = new Date().getTime() + (h * 3600000);
+        timelineStaff.setWindow(new Date(target - 7200000), new Date(target + 28800000));
+    }
+
+    function showPage(id, e) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        if(id === 'planning') setTimeout(() => timelineStaff.redraw(), 100);
+    }
+
+    function setCurrentTimeInputs() {
+        const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        document.getElementById('gStart').value = now.toISOString().slice(0, 16);
+        document.getElementById('gEnd').value = new Date(now.getTime() + 7200000).toISOString().slice(0, 16);
+    }
+</script>
+</body>
+</html>
