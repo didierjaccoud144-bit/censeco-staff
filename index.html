@@ -2,17 +2,13 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>CENSECO 2026 - STAFF V11.8</title>
+    <title>CENSECO 2026 - STAFF V11.9 (FIX SUPPRESSION)</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <script src="https://unpkg.com/vis-timeline@latest/standalone/umd/vis-timeline-graph2d.min.js"></script>
     <link href="https://unpkg.com/vis-timeline@latest/styles/vis-timeline-graph2d.min.css" rel="stylesheet" />
-    
     <style>
-        :root {
-            --bg: #f1f5f9; --fids: #ffcc00; --accent: #4338ca; --success: #15803d; 
-            --danger: #dc2626; --piquet: #10b981; --std-blue: #0000FF;
-        }
+        :root { --bg: #f1f5f9; --fids: #ffcc00; --accent: #4338ca; --success: #15803d; --danger: #dc2626; --piquet: #10b981; --std-blue: #0000FF; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         header { background: #000; color: #fff; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--fids); }
         .nav-main { display: flex; background: #fff; border-bottom: 1px solid #cbd5e1; flex-shrink: 0; }
@@ -25,22 +21,15 @@
         .field { display: flex; flex-direction: column; gap: 5px; }
         .field label { font-size: 0.65em; font-weight: 900; color: #475569; text-transform: uppercase; }
         input, select { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 800; background: #fff; }
-        
-        /* TIMELINE DESIGN */
         .vis-container { background: #0f172a !important; border-radius: 10px; border: 2px solid #334155; height: 600px; }
         .vis-label { color: var(--fids) !important; font-weight: bold; background: #1e293b !important; border-bottom: 1px solid #334155 !important; }
         .vis-time-axis .vis-text { color: var(--fids) !important; font-weight: bold; }
-        
-        /* ITEMS STYLE */
         .vis-item { border-radius: 4px !important; border-width: 0 0 0 6px !important; font-weight: 800; color: white !important; }
         .vis-item.vis-range { background-color: var(--std-blue) !important; border-color: #000099 !important; }
         .vis-item.piquet-style { background-color: var(--piquet) !important; border-color: #065f46 !important; }
         .vis-item.vis-background.alerte-vide { background-color: rgba(220, 38, 38, 0.15) !important; z-index: 1; border: none !important; }
-
-        /* FLOATING NAV */
         .floating-nav { position: absolute; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 10px; z-index: 1000; }
         .btn-float { background: #1e293b; color: var(--fids); border: 2px solid #fff; padding: 12px 20px; border-radius: 30px; font-weight: 900; cursor: pointer; font-size: 0.75em; text-transform: uppercase; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-
         .btn-v { background: var(--success); color: #fff; border: none; padding: 12px 20px; border-radius: 8px; font-weight: 900; cursor: pointer; }
         .footer { text-align: center; padding: 10px; font-size: 0.7em; opacity: 0.5; }
     </style>
@@ -48,7 +37,7 @@
 <body>
 
 <header>
-    <div style="font-weight: 900;">CENSECO 2026 - STAFF (V11.8 CLOUD)</div>
+    <div style="font-weight: 900;">CENSECO 2026 - STAFF (V11.9 CLOUD)</div>
     <div id="clock">00:00:00</div>
 </header>
 
@@ -121,7 +110,7 @@
     firebase.initializeApp(firebaseConfig);
     const dbRef = firebase.database().ref('planning_staff');
 
-    let personnel = JSON.parse(localStorage.getItem('db_staff_v11.8')) || [];
+    let personnel = JSON.parse(localStorage.getItem('db_staff_v11.9')) || [];
     let gardes = [];
     let timelineStaff;
     const itemsStaff = new vis.DataSet([]);
@@ -166,20 +155,13 @@
         const start = document.getElementById('gStart').value;
         const end = document.getElementById('gEnd').value;
         if(!staff || !start || !end) return alert("Champs vides.");
-
-        const entry = {
-            id: 'g_' + Date.now(),
-            group: poste,
-            start: new Date(start),
-            end: new Date(end),
-            content: "[" + staff.grade + "] " + staff.identite,
-            className: poste === 'PIQUET' ? 'piquet-style' : ''
-        };
+        const entry = { id: 'g_' + Date.now(), group: poste, start: new Date(start), end: new Date(end), content: "[" + staff.grade + "] " + staff.identite, className: poste === 'PIQUET' ? 'piquet-style' : '' };
         itemsStaff.add(entry);
         syncGardes();
     }
 
     function syncGardes() {
+        // IMPORTANT : On extrait les items et on les renvoie à Firebase pour mettre à jour le serveur
         gardes = itemsStaff.get({ filter: i => i.type !== 'background' }).map(i => ({
             ...i, start: i.start.toISOString(), end: i.end.toISOString()
         }));
@@ -187,20 +169,16 @@
     }
 
     function updateCloud() {
-        localStorage.setItem('db_staff_v11.8', JSON.stringify(personnel));
+        localStorage.setItem('db_staff_v11.9', JSON.stringify(personnel));
         dbRef.set({ personnel: personnel, gardes: gardes });
         renderStaffList();
     }
 
     function renderStaffList() {
-        const list = document.getElementById('staffList');
-        const sel = document.getElementById('sel-staff');
+        const list = document.getElementById('staffList'); const sel = document.getElementById('sel-staff');
         list.innerHTML = ''; sel.innerHTML = '';
         personnel.forEach(m => {
-            list.innerHTML += `<div style="background:#fff; padding:10px; margin-bottom:5px; border-radius:8px; display:flex; justify-content:space-between; border:1px solid #cbd5e1;">
-                <span><b>[${m.grade}]</b> ${m.identite}</span>
-                <button onclick="delStaff(${m.id})" style="color:red; border:none; background:none; cursor:pointer;">🗑️</button>
-            </div>`;
+            list.innerHTML += `<div style="background:#fff; padding:10px; margin-bottom:5px; border-radius:8px; display:flex; justify-content:space-between; border:1px solid #cbd5e1;"><span><b>[${m.grade}]</b> ${m.identite}</span><button onclick="delStaff(${m.id})" style="color:red; border:none; background:none; cursor:pointer;">🗑️</button></div>`;
             sel.add(new Option("[" + m.grade + "] " + m.identite, m.id));
         });
     }
@@ -212,6 +190,7 @@
             stack: true, editable: true, showCurrentTime: true,
             snap: (date) => Math.round(date / (15 * 60 * 1000)) * (15 * 60 * 1000)
         });
+        // CRITIQUE : Ces deux lignes assurent que TOUTE modification (déplacement ou suppression) est envoyée à Firebase
         timelineStaff.on('itemchanged', syncGardes);
         timelineStaff.on('itemremoved', syncGardes);
     }
