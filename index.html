@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>CENSECO 2026 - PLANNING STAFF (RESTAURATION V11.7)</title>
+    <title>CENSECO 2026 - STAFF V11.8</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <script src="https://unpkg.com/vis-timeline@latest/standalone/umd/vis-timeline-graph2d.min.js"></script>
@@ -11,10 +11,10 @@
     <style>
         :root {
             --bg: #f1f5f9; --fids: #ffcc00; --accent: #4338ca; --success: #15803d; 
-            --danger: #dc2626; --piquet: #10b981; --standard-blue: #0000FF;
+            --danger: #dc2626; --piquet: #10b981; --std-blue: #0000FF;
         }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        header { background: #000; color: #fff; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--fids); z-index: 1001; }
+        header { background: #000; color: #fff; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--fids); }
         .nav-main { display: flex; background: #fff; border-bottom: 1px solid #cbd5e1; flex-shrink: 0; }
         .nav-btn { padding: 15px 25px; cursor: pointer; border: none; background: none; font-weight: bold; opacity: 0.5; font-size: 0.9em; }
         .nav-btn.active { opacity: 1; border-bottom: 3px solid var(--accent); color: var(--accent); }
@@ -26,18 +26,18 @@
         .field label { font-size: 0.65em; font-weight: 900; color: #475569; text-transform: uppercase; }
         input, select { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 800; background: #fff; }
         
-        /* TIMELINE UI RESTAURÉE */
+        /* TIMELINE DESIGN */
         .vis-container { background: #0f172a !important; border-radius: 10px; border: 2px solid #334155; height: 600px; }
         .vis-label { color: var(--fids) !important; font-weight: bold; background: #1e293b !important; border-bottom: 1px solid #334155 !important; }
         .vis-time-axis .vis-text { color: var(--fids) !important; font-weight: bold; }
         
-        /* COULEURS DES POSTES */
-        .vis-item { border-radius: 4px !important; border-width: 0 0 0 6px !important; font-weight: 800; color: white !important; font-size: 0.9em; }
-        .vis-item.vis-range { background-color: var(--standard-blue) !important; border-color: #000099 !important; }
+        /* ITEMS STYLE */
+        .vis-item { border-radius: 4px !important; border-width: 0 0 0 6px !important; font-weight: 800; color: white !important; }
+        .vis-item.vis-range { background-color: var(--std-blue) !important; border-color: #000099 !important; }
         .vis-item.piquet-style { background-color: var(--piquet) !important; border-color: #065f46 !important; }
-        .vis-item.vis-background.alerte-vide { background-color: rgba(220, 38, 38, 0.12) !important; z-index: 1; border: none !important; }
+        .vis-item.vis-background.alerte-vide { background-color: rgba(220, 38, 38, 0.15) !important; z-index: 1; border: none !important; }
 
-        /* BOUTONS FLOTTANTS RESTAURÉS */
+        /* FLOATING NAV */
         .floating-nav { position: absolute; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 10px; z-index: 1000; }
         .btn-float { background: #1e293b; color: var(--fids); border: 2px solid #fff; padding: 12px 20px; border-radius: 30px; font-weight: 900; cursor: pointer; font-size: 0.75em; text-transform: uppercase; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
 
@@ -48,7 +48,7 @@
 <body>
 
 <header>
-    <div style="font-weight: 900;">CENSECO 2026 - PLANNING STAFF (V11.7)</div>
+    <div style="font-weight: 900;">CENSECO 2026 - STAFF (V11.8 CLOUD)</div>
     <div id="clock">00:00:00</div>
 </header>
 
@@ -121,8 +121,8 @@
     firebase.initializeApp(firebaseConfig);
     const dbRef = firebase.database().ref('planning_staff');
 
-    let personnel = JSON.parse(localStorage.getItem('db_staff_v11.7')) || [];
-    let gardes = []; // Sera rempli par Firebase
+    let personnel = JSON.parse(localStorage.getItem('db_staff_v11.8')) || [];
+    let gardes = [];
     let timelineStaff;
     const itemsStaff = new vis.DataSet([]);
     const groupsStaff = new vis.DataSet([
@@ -143,7 +143,6 @@
                 renderStaffList();
                 itemsStaff.clear();
                 addBackgrounds();
-                // Re-conversion des dates texte en objets Date pour la Timeline
                 const cloudItems = gardes.map(g => ({ ...g, start: new Date(g.start), end: new Date(g.end) }));
                 itemsStaff.add(cloudItems);
             }
@@ -166,10 +165,9 @@
         const poste = document.getElementById('sel-poste').value;
         const start = document.getElementById('gStart').value;
         const end = document.getElementById('gEnd').value;
+        if(!staff || !start || !end) return alert("Champs vides.");
 
-        if(!staff || !start || !end) return alert("Veuillez remplir tous les champs.");
-
-        const newEntry = {
+        const entry = {
             id: 'g_' + Date.now(),
             group: poste,
             start: new Date(start),
@@ -177,23 +175,20 @@
             content: "[" + staff.grade + "] " + staff.identite,
             className: poste === 'PIQUET' ? 'piquet-style' : ''
         };
-
-        itemsStaff.add(newEntry);
+        itemsStaff.add(entry);
         syncGardes();
     }
 
     function syncGardes() {
-        // Extraction des données brutes pour Firebase (conversion Date -> String)
-        const rawGardes = itemsStaff.get({ filter: i => i.type !== 'background' }).map(i => ({
+        gardes = itemsStaff.get({ filter: i => i.type !== 'background' }).map(i => ({
             ...i, start: i.start.toISOString(), end: i.end.toISOString()
         }));
-        gardes = rawGardes;
         updateCloud();
     }
 
     function updateCloud() {
-        localStorage.setItem('db_staff_v11.7', JSON.stringify(personnel));
-        dbRef.set({ personnel: personnel, gardes: gardes, lastUpdate: Date.now() });
+        localStorage.setItem('db_staff_v11.8', JSON.stringify(personnel));
+        dbRef.set({ personnel: personnel, gardes: gardes });
         renderStaffList();
     }
 
@@ -201,16 +196,16 @@
         const list = document.getElementById('staffList');
         const sel = document.getElementById('sel-staff');
         list.innerHTML = ''; sel.innerHTML = '';
-        personnel.sort((a,b) => a.identite.localeCompare(b.identite)).forEach(m => {
-            list.innerHTML += `<div style="background:#fff; padding:12px; margin-bottom:8px; border-radius:10px; display:flex; justify-content:space-between; border:1px solid #cbd5e1;">
-                <span><b>[${m.grade}]</b> ${m.identite} <small>(${m.fonction})</small></span>
-                <button onclick="delStaff(${m.id})" style="color:red; border:none; background:none; cursor:pointer; font-weight:bold;">🗑️</button>
+        personnel.forEach(m => {
+            list.innerHTML += `<div style="background:#fff; padding:10px; margin-bottom:5px; border-radius:8px; display:flex; justify-content:space-between; border:1px solid #cbd5e1;">
+                <span><b>[${m.grade}]</b> ${m.identite}</span>
+                <button onclick="delStaff(${m.id})" style="color:red; border:none; background:none; cursor:pointer;">🗑️</button>
             </div>`;
             sel.add(new Option("[" + m.grade + "] " + m.identite, m.id));
         });
     }
 
-    function delStaff(id) { if(confirm("Supprimer ?")) { personnel = personnel.filter(x => x.id !== id); updateCloud(); } }
+    function delStaff(id) { personnel = personnel.filter(x => x.id !== id); updateCloud(); }
 
     function initTimeline() {
         timelineStaff = new vis.Timeline(document.getElementById('vis-staff'), itemsStaff, groupsStaff, {
