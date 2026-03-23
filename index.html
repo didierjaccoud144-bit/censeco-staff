@@ -2,232 +2,167 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CENSECO 2026 - STAFF V11.9 (CLOUD)</title>
-
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%230000FF%22/><text y=%22.85em%22 x=%2212%22 font-size=%2275%22>👤</text></svg>">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%230000FF%22/><text y=%22.85em%22 x=%2212%22 font-size=%2275%22>👤</text></svg>">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="CenSeco STAFF">
-
+    <title>CENSECO 2026 - PLANNING PROTOCONTROL V1.8</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-    <script src="https://unpkg.com/vis-timeline@latest/standalone/umd/vis-timeline-graph2d.min.js"></script>
-    <link href="https://unpkg.com/vis-timeline@latest/styles/vis-timeline-graph2d.min.css" rel="stylesheet" />
-    
     <style>
-        :root { --bg: #f1f5f9; --fids: #ffcc00; --accent: #4338ca; --success: #15803d; --danger: #dc2626; --piquet: #10b981; --std-blue: #0000FF; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        header { background: #000; color: #fff; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--fids); }
-        .nav-main { display: flex; background: #fff; border-bottom: 1px solid #cbd5e1; flex-shrink: 0; overflow-x: auto; }
-        .nav-btn { padding: 15px 25px; cursor: pointer; border: none; background: none; font-weight: bold; opacity: 0.5; font-size: 0.9em; white-space: nowrap; }
-        .nav-btn.active { opacity: 1; border-bottom: 3px solid var(--accent); color: var(--accent); }
-        .container { flex: 1; overflow-y: auto; padding: 20px; position: relative; }
-        .page { display: none; } .page.active { display: block; }
-        .card { background: #e2e8f0; padding: 18px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 20px; }
-        .row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 10px; }
-        .field { display: flex; flex-direction: column; gap: 5px; }
-        .field label { font-size: 0.65em; font-weight: 900; color: #475569; text-transform: uppercase; }
-        input, select { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 800; background: #fff; }
-        .vis-container { background: #0f172a !important; border-radius: 10px; border: 2px solid #334155; height: 600px; }
-        .vis-label { color: var(--fids) !important; font-weight: bold; background: #1e293b !important; border-bottom: 1px solid #334155 !important; }
-        .vis-time-axis .vis-text { color: var(--fids) !important; font-weight: bold; }
-        .vis-item { border-radius: 4px !important; border-width: 0 0 0 6px !important; font-weight: 800; color: white !important; }
-        .vis-item.vis-range { background-color: var(--std-blue) !important; border-color: #000099 !important; }
-        .vis-item.piquet-style { background-color: var(--piquet) !important; border-color: #065f46 !important; }
-        .vis-item.vis-background.alerte-vide { background-color: rgba(220, 38, 38, 0.15) !important; z-index: 1; border: none !important; }
-        .floating-nav { position: absolute; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 10px; z-index: 1000; }
-        .btn-float { background: #1e293b; color: var(--fids); border: 2px solid #fff; padding: 12px 20px; border-radius: 30px; font-weight: 900; cursor: pointer; font-size: 0.75em; text-transform: uppercase; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        .btn-v { background: var(--success); color: #fff; border: none; padding: 12px 20px; border-radius: 8px; font-weight: 900; cursor: pointer; }
-        .footer { text-align: center; padding: 10px; font-size: 0.7em; opacity: 0.5; }
+        :root {
+            --bg: #0f172a; --card: #1e293b; --text: #f1f5f9;
+            --accent: #4338ca; --fids: #ffcc00; --live: #dc2626;
+            --row-h: 45px; --col-w: 120px; --lab-w: 180px;
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        header { background: #000; padding: 15px 20px; border-bottom: 2px solid var(--fids); flex-shrink: 0; }
+        
+        /* PANEL SAISIE */
+        .pnl { background: var(--card); padding: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; border-radius: 8px; margin-top: 10px; border: 1px solid #334155; }
+        .ig { display: flex; flex-direction: column; gap: 3px; }
+        label { font-size: 0.65em; font-weight: 900; color: var(--fids); text-transform: uppercase; }
+        select, input { background: #0f172a; border: 1px solid #334155; color: white; padding: 6px; border-radius: 4px; font-weight: bold; }
+        .btn-v { background: #15803d; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: 900; cursor: pointer; }
+
+        /* GRID */
+        .plan-wrap { flex: 1; overflow: auto; padding: 20px; position: relative; }
+        .grid { display: grid; grid-template-columns: var(--lab-w) repeat(48, var(--col-w)); background: var(--card); border: 1px solid #334155; position: relative; width: max-content; }
+        .h-time { background: #000; color: var(--fids); font-weight: 900; font-size: 0.75em; text-align: center; padding: 12px 0; border-bottom: 2px solid var(--fids); position: sticky; top: 0; z-index: 20; border-right: 1px solid #334155; }
+        .l-post { background: #000; color: white; font-weight: 900; font-size: 0.75em; padding-left: 15px; display: flex; align-items: center; border-bottom: 1px solid #334155; position: sticky; left: 0; z-index: 15; height: var(--row-h); border-right: 2px solid var(--fids); }
+        .cell { height: var(--row-h); border-bottom: 1px solid rgba(148, 163, 184, 0.1); border-right: 1px solid rgba(148, 163, 184, 0.1); position: relative; }
+
+        /* SHIFTS */
+        .s-blk { position: absolute; top: 4px; border-radius: 4px; display: flex; align-items: center; padding-left: 10px; font-weight: 900; font-size: 0.8em; color: white; border: 1px solid rgba(255,255,255,0.2); z-index: 5; height: 37px; box-shadow: 2px 0 5px rgba(0,0,0,0.2); }
+        .s-blk.cng { background: #475569 !important; border-left: 4px solid #94a3b8; }
+        .l-cng { grid-column: 2 / span 48; background: rgba(15, 23, 42, 0.8); position: relative; border-bottom: 1px solid #334155; }
+        #nowL { position: absolute; top: 0; bottom: 0; width: 3px; background: var(--live); z-index: 100; pointer-events: none; box-shadow: 0 0 15px var(--live); }
+        .b-del { margin-left: auto; margin-right: 8px; background: rgba(0,0,0,0.4); color: white; border: none; border-radius: 50%; cursor: pointer; width: 18px; height: 18px; font-size: 10px; }
+
+        /* MODAL EQUIPE */
+        #modEq { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e293b; padding: 20px; border-radius: 12px; border: 2px solid var(--fids); z-index: 1000; width: 300px; }
     </style>
 </head>
 <body>
 
 <header>
-    <div style="font-weight: 900;">CENSECO 2026 - STAFF (V11.9 CLOUD)</div>
-    <div id="clock">00:00:00</div>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-weight:900;">CENSECO 2026 - <span style="color:var(--fids)">PLANNING PROTOCONTROL</span></div>
+        <div id="clock" style="font-family:monospace; color:var(--fids); font-weight:900; font-size: 1.2em;">00:00:00</div>
+    </div>
+    <div class="pnl">
+        <div class="ig"><label>Personnel</label><select id="selP"></select></div>
+        <div class="ig"><label>Poste</label><select id="selF">
+            <option value="0">M C PDG</option><option value="1">C CenSeco</option><option value="2">Adj C CenSeco</option>
+            <option value="3">Rég 1</option><option value="4">Rég 2</option><option value="5">Rég piquet</option>
+            <option value="6">AIC C CenSeco</option><option value="7">AIC Rég 1</option><option value="8">AIC Rég 2</option>
+            <option value="9">Teneur d'affiche</option><option value="10">Rég Héli</option><option value="cng">🏖️ CONGÉ</option>
+        </select></div>
+        <div class="ig"><label>Début</label><input type="time" id="sH" step="1800" value="08:00"></div>
+        <div class="ig"><label>Fin</label><input type="time" id="eH" step="1800" value="12:00"></div>
+        <button class="btn-v" onclick="addSh()">VALIDER</button>
+        <button onclick="openEq()" style="background:#334155; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer; font-size:0.7em;">⚙️ ÉQUIPE</button>
+        <button onclick="scNow()" style="background:#334155; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer; font-size:0.7em; margin-left:auto;">🎯 LIVE</button>
+    </div>
 </header>
 
-<div class="nav-main">
-    <button class="nav-btn active" onclick="showPage('registre', event)">👤 REGISTRE</button>
-    <button class="nav-btn" onclick="showPage('planning', event)">🗓️ PLANNING (LIVE)</button>
+<div class="plan-wrap" id="scA">
+    <div class="grid" id="grM"></div>
 </div>
 
-<div class="container">
-    <div id="registre" class="page active">
-        <div class="card">
-            <div class="row">
-                <div class="field"><label>Grade</label><input type="text" id="pGrade" style="width:70px;"></div>
-                <div class="field" style="flex:1;"><label>Nom</label><input type="text" id="pIdentite"></div>
-                <div class="field">
-                    <label>Poste</label>
-                    <select id="pFonction">
-                        <option value="C CenSeco">C CenSeco</option><option value="Adj C CenSeco">Adj C CenSeco</option>
-                        <option value="AIC C CenSeco">AIC C CenSeco</option><option value="AIC Régulateur">AIC Régulateur</option>
-                        <option value="Régulateur">Régulateur</option><option value="Dispatch hélico">Dispatch hélico</option><option value="Guide">Guide</option>
-                    </select>
-                </div>
-                <button class="btn-v" onclick="addStaff()">+ ENREGISTRER</button>
-            </div>
-        </div>
-        <div id="staffList"></div>
-    </div>
-
-    <div id="planning" class="page">
-        <div class="card" style="background:#fff;">
-            <div class="row">
-                <div class="field"><label>Membre</label><select id="sel-staff" style="width:200px;"></select></div>
-                <div class="field">
-                    <label>Poste</label>
-                    <select id="sel-poste">
-                        <option value="C">C CenSeco</option><option value="ADJ">Adj C CenSeco</option>
-                        <option value="AIC_C">AIC C CenSeco</option><option value="AIC_R1">AIC Régulateur 1</option>
-                        <option value="AIC_R2">AIC Régulateur 2</option><option value="R1">Régulateur 1</option>
-                        <option value="R2">Régulateur 2</option><option value="HELI">Dispatch hélico</option>
-                        <option value="GUIDE">Guide</option><option value="PIQUET">🚩 PIQUET</option>
-                    </select>
-                </div>
-                <div class="field"><label>Début</label><input type="datetime-local" id="gStart"></div>
-                <div class="field"><label>Fin</label><input type="datetime-local" id="gEnd"></div>
-                <button class="btn-v" onclick="assignGarde()">➕ AFFECTER</button>
-            </div>
-        </div>
-        <div id="vis-staff" class="vis-container"></div>
-        <div class="floating-nav">
-            <button class="btn-float" style="background:var(--danger); color:white;" onclick="jumpTo(0)">🎯 MAINTENANT</button>
-            <button class="btn-float" onclick="jumpTo(12)">🕒 H +12h</button>
-            <button class="btn-float" onclick="jumpTo(24)">🕒 H +24h</button>
-        </div>
-    </div>
+<div id="modEq">
+    <h4 style="margin-top:0">Gestion d'Équipe</h4>
+    <input type="text" id="newN" placeholder="Nom du membre..." style="margin-bottom:10px">
+    <button onclick="addMem()" style="width:100%; background:var(--accent); color:white; border:none; padding:8px; margin-bottom:10px">Ajouter</button>
+    <div id="listEq" style="max-height:150px; overflow:auto; font-size:0.8em; background:#0f172a; padding:5px"></div>
+    <button onclick="closeEq()" style="width:100%; margin-top:10px; background:transparent; color:white; border:1px solid #444">Fermer</button>
 </div>
-
-<div class="footer">Une création DJA’WEB avec l’aide de Gemini IA</div>
 
 <script>
-    const firebaseConfig = {
-        apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU",
-        authDomain: "censeco-2026.firebaseapp.com",
-        databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app",
-        projectId: "censeco-2026",
-        storageBucket: "censeco-2026.firebasestorage.app",
-        messagingSenderId: "1030152312862",
-        appId: "1:1030152312862:web:9618132ec2bcfc7831b60f"
-    };
-
+    // CONFIG FIREBASE (Branche planning séparée)
+    const firebaseConfig = { apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU", authDomain: "censeco-2026.firebaseapp.com", databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app", projectId: "censeco-2026", storageBucket: "censeco-2026.firebasestorage.app", messagingSenderId: "1030152312862", appId: "1:1030152312862:web:9618132ec2bcfc7831b60f" };
     firebase.initializeApp(firebaseConfig);
-    const dbRef = firebase.database().ref('planning_staff');
+    const planRef = firebase.database().ref('planning_pdg');
 
-    let personnel = JSON.parse(localStorage.getItem('db_staff_v11.9')) || [];
-    let gardes = [];
-    let timelineStaff;
-    const itemsStaff = new vis.DataSet([]);
-    const groupsStaff = new vis.DataSet([
-        { id: 'C', content: 'C CenSeco' }, { id: 'ADJ', content: 'Adj C CenSeco' },
-        { id: 'AIC_C', content: 'AIC C CenSeco' }, { id: 'AIC_R1', content: 'AIC Régulateur 1' },
-        { id: 'AIC_R2', content: 'AIC Régulateur 2' }, { id: 'R1', content: 'Régulateur 1' },
-        { id: 'R2', content: 'Régulateur 2' }, { id: 'HELI', content: 'Dispatch hélico' },
-        { id: 'GUIDE', content: 'Guide' }, { id: 'PIQUET', content: '🚩 PIQUET', stack: true }
-    ]);
+    const fcts = ["M C PDG", "C CenSeco", "Adj C CenSeco", "Rég 1", "Rég 2", "Rég piquet", "AIC C CenSeco", "AIC Rég 1", "AIC Rég 2", "Teneur d'affiche", "Rég Héli"];
+    const clrs = ["#4338ca", "#059669", "#d97706", "#7c3aed", "#be185d", "#0369a1", "#1e40af", "#065f46", "#92400e", "#6b21a8", "#b91c1c"];
+    
+    let members = ["Kohlprath", "Jüni", "Eichenberger", "Arlettaz", "Chablais", "Jaccoud", "Apothéloz", "Beaud", "Bize", "Mezger"];
+    let shifts = [];
 
     window.onload = () => {
-        initTimeline();
-        dbRef.on('value', (snapshot) => {
-            const data = snapshot.val();
+        planRef.on('value', snap => {
+            const data = snap.val();
             if(data) {
-                personnel = data.personnel || [];
-                gardes = data.gardes || [];
-                renderStaffList();
-                itemsStaff.clear();
-                addBackgrounds();
-                const cloudItems = gardes.map(g => ({ ...g, start: new Date(g.start), end: new Date(g.end) }));
-                itemsStaff.add(cloudItems);
+                shifts = data.shifts || [];
+                if(data.members) members = data.members;
             }
+            initG();
+            updateSels();
         });
-        setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString('fr-FR'); }, 1000);
-        setCurrentTimes();
+        setInterval(upLive, 1000);
     };
 
-    function addStaff() {
-        const iden = document.getElementById('pIdentite').value;
-        if(!iden) return;
-        personnel.push({ id: Date.now(), grade: document.getElementById('pGrade').value.toUpperCase(), identite: iden, fonction: document.getElementById('pFonction').value });
-        updateCloud();
-        document.getElementById('pIdentite').value = '';
-    }
-
-    function assignGarde() {
-        const sId = document.getElementById('sel-staff').value;
-        const staff = personnel.find(x => x.id == sId);
-        const poste = document.getElementById('sel-poste').value;
-        const start = document.getElementById('gStart').value;
-        const end = document.getElementById('gEnd').value;
-        if(!staff || !start || !end) return alert("Champs vides.");
-        const entry = { id: 'g_' + Date.now(), group: poste, start: new Date(start), end: new Date(end), content: "[" + staff.grade + "] " + staff.identite, className: poste === 'PIQUET' ? 'piquet-style' : '' };
-        itemsStaff.add(entry);
-        syncGardes();
-    }
-
-    function syncGardes() {
-        gardes = itemsStaff.get({ filter: i => i.type !== 'background' }).map(i => ({
-            ...i, start: i.start.toISOString(), end: i.end.toISOString()
-        }));
-        updateCloud();
-    }
-
-    function updateCloud() {
-        localStorage.setItem('db_staff_v11.9', JSON.stringify(personnel));
-        dbRef.set({ personnel: personnel, gardes: gardes });
-        renderStaffList();
-    }
-
-    function renderStaffList() {
-        const list = document.getElementById('staffList'); const sel = document.getElementById('sel-staff');
-        list.innerHTML = ''; sel.innerHTML = '';
-        personnel.forEach(m => {
-            list.innerHTML += `<div style="background:#fff; padding:10px; margin-bottom:5px; border-radius:8px; display:flex; justify-content:space-between; border:1px solid #cbd5e1;"><span><b>[${m.grade}]</b> ${m.identite}</span><button onclick="delStaff(${m.id})" style="color:red; border:none; background:none; cursor:pointer;">🗑️</button></div>`;
-            sel.add(new Option("[" + m.grade + "] " + m.identite, m.id));
+    function initG() {
+        const g = document.getElementById('grM');
+        let h = `<div class="h-time" style="position:sticky; left:0; z-index:21; border-right:2px solid var(--fids)">FONCTIONS</div>`;
+        for(let i=0; i<48; i++) {
+            let hr = Math.floor(i/2).toString().padStart(2,'0'), mn = (i%2===0)?"00":"30";
+            h += `<div class="h-time">${hr}:${mn}</div>`;
+        }
+        fcts.forEach((p, i) => {
+            h += `<div class="l-post">${p}</div>`;
+            for(let j=0; j<48; j++) h += `<div class="cell" id="s-${i}-${j}"></div>`;
         });
+        h += `<div class="l-post" style="color:var(--fids)" id="lC">CONGÉS</div><div class="l-cng" id="cC"></div><div id="nowL"></div>`;
+        g.innerHTML = h;
+        renderS();
     }
 
-    function delStaff(id) { if(confirm("Supprimer ce membre ?")) { personnel = personnel.filter(x => x.id !== id); updateCloud(); } }
+    function renderS() {
+        document.querySelectorAll('.cell').forEach(c => c.innerHTML = '');
+        const cC = document.getElementById('cC'), lC = document.getElementById('lC');
+        if(!cC) return; cC.innerHTML = '';
+        let cLvl = [];
 
-    function initTimeline() {
-        timelineStaff = new vis.Timeline(document.getElementById('vis-staff'), itemsStaff, groupsStaff, {
-            stack: true, editable: true, showCurrentTime: true,
-            snap: (date) => Math.round(date / (15 * 60 * 1000)) * (15 * 60 * 1000)
+        shifts.forEach(s => {
+            if(s.pVal === "cng") {
+                let lv = 0; while(cLvl[lv] && cLvl[lv].some(b => !(s.sI >= b.e || (s.sI + s.dur) <= b.s))) lv++;
+                if(!cLvl[lv]) cLvl[lv] = []; cLvl[lv].push({s:s.sI, e:s.sI+s.dur});
+                const d = document.createElement('div'); d.className = 's-blk cng';
+                d.style.width = (s.dur*120-8)+"px"; d.style.left = (s.sI*120+4)+"px"; d.style.top = (lv*45+4)+"px";
+                d.innerHTML = `<span>🏖️ ${s.n.toUpperCase()}</span><button class="b-del" onclick="delS(${s.id})">×</button>`;
+                cC.appendChild(d);
+            } else {
+                const p = document.getElementById(`s-${s.pVal}-${s.sI}`);
+                if(p) {
+                    const d = document.createElement('div'); d.className = 's-blk';
+                    d.style.width = (s.dur*120-8)+"px"; d.style.left = "4px"; d.style.backgroundColor = clrs[s.pVal];
+                    d.innerHTML = `<span>${s.n.toUpperCase()}</span><button class="b-del" onclick="delS(${s.id})">×</button>`;
+                    p.appendChild(d);
+                }
+            }
         });
-        timelineStaff.on('itemchanged', syncGardes);
-        timelineStaff.on('itemremoved', syncGardes);
+        const max = Math.max(cLvl.length, 1);
+        cC.style.height = (max*45)+"px"; lC.style.height = (max*45)+"px";
     }
 
-    function addBackgrounds() {
-        const t = new Date().setHours(0,0,0,0);
-        groupsStaff.get().filter(g => g.id !== 'PIQUET').forEach(g => {
-            itemsStaff.add({ id: 'bg_'+g.id, group: g.id, start: t, end: t + (72*3600000), type: 'background', className: 'alerte-vide' });
-        });
+    function addSh() {
+        const n = document.getElementById('selP').value, pVal = document.getElementById('selF').value;
+        const sI = tToI(document.getElementById('sH').value), eI = tToI(document.getElementById('eH').value);
+        if(eI <= sI) return alert("Heure invalide");
+        shifts.push({ id:Date.now(), n, pVal, sI, dur: eI-sI });
+        planRef.update({ shifts });
     }
 
-    function jumpTo(h) {
-        if(!timelineStaff) return;
-        const target = new Date().getTime() + (h * 3600000);
-        timelineStaff.setWindow(new Date(target - 7200000), new Date(target + 28800000));
+    function tToI(t) { const [h,m] = t.split(':').map(Number); return h*2 + (m>=30?1:0); }
+    function delS(id) { shifts = shifts.filter(x => x.id !== id); planRef.update({ shifts }); }
+    function updateSels() {
+        const s = document.getElementById('selP'); s.innerHTML = members.map(m => `<option>${m}</option>`).join('');
+        document.getElementById('listEq').innerHTML = members.map(m => `<div style="display:flex; justify-content:space-between; margin-bottom:5px"><span>${m}</span><span onclick="delMem('${m}')" style="color:red; cursor:pointer">×</span></div>`).join('');
     }
-
-    function showPage(id, e) {
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        if(id === 'planning') setTimeout(() => timelineStaff.redraw(), 100);
-    }
-
-    function setCurrentTimes() {
-        const n = new Date(); n.setMinutes(n.getMinutes() - n.getTimezoneOffset());
-        document.getElementById('gStart').value = n.toISOString().slice(0, 16);
-        document.getElementById('gEnd').value = new Date(n.getTime() + 7200000).toISOString().slice(0, 16);
-    }
+    function openEq() { document.getElementById('modEq').style.display='block'; }
+    function closeEq() { document.getElementById('modEq').style.display='none'; }
+    function addMem() { const n = document.getElementById('newN').value; if(n){ members.push(n); planRef.update({ members }); document.getElementById('newN').value=''; }}
+    function delMem(n) { members = members.filter(x => x !== n); planRef.update({ members }); }
+    function scNow() { const n = new Date(); const p = 180 + (((n.getHours()*60)+n.getMinutes()) * (120/30)); document.getElementById('scA').scrollLeft = p - (60*(120/30)) - 180; }
+    function upLive() { const n = new Date(); const l = 180 + (((n.getHours()*60)+n.getMinutes()) * (4)); const line = document.getElementById('nowL'); if(line) line.style.left = l+"px"; document.getElementById('clock').innerText = n.toLocaleTimeString('fr-FR'); }
 </script>
 </body>
 </html>
