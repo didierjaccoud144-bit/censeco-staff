@@ -3,88 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENSECO 2026 - PLANNING V4.4</title>
+    <title>CENSECO 2026 - PLANNING DIAGNOSTIC</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
-        :root { --bg: #020617; --fids: #ffcc00; --accent: #38bdf8; --on: #22c55e; --off: #64748b; --next: #a855f7; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; box-sizing: border-box; }
-        header { border-bottom: 3px solid var(--fids); padding-bottom: 15px; margin-bottom: 20px; text-align: center; }
-        .clock { font-family: monospace; font-size: 2.5em; font-weight: 900; color: var(--fids); line-height: 1; }
-        h2 { text-transform: uppercase; font-size: 0.9em; letter-spacing: 2px; color: var(--accent); border-left: 5px solid var(--accent); padding-left: 12px; margin: 30px 0 15px 0; }
+        :root { --bg: #020617; --fids: #ffcc00; --accent: #38bdf8; --on: #22c55e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; }
+        header { border-bottom: 3px solid var(--fids); padding-bottom: 10px; text-align: center; }
+        .clock { font-family: monospace; font-size: 2em; font-weight: 900; color: var(--fids); }
+        
+        .debug-panel { 
+            background: #000; color: #0f0; font-family: monospace; 
+            padding: 15px; border: 1px solid #0f0; border-radius: 8px;
+            margin: 20px 0; font-size: 0.8em; max-height: 200px; overflow-y: auto;
+        }
+
         .grid-staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
-        .staff-card { background: #1e293b; border-radius: 12px; padding: 12px; border: 1px solid rgba(255,255,255,0.1); position: relative; }
-        .status-dot { position: absolute; top: 10px; right: 10px; width: 8px; height: 8px; border-radius: 50%; background: var(--off); }
-        .active .status-dot { background: var(--on); box-shadow: 0 0 8px var(--on); }
-        .name { font-size: 1.1em; font-weight: 900; color: white; display: block; }
-        .role { font-size: 0.65em; font-weight: 900; color: var(--accent); text-transform: uppercase; }
-        .time { font-size: 0.8em; color: var(--fids); font-weight: 800; margin-top: 5px; display: block; }
+        .staff-card { background: #1e293b; border-radius: 12px; padding: 15px; border: 1px solid var(--accent); position: relative; }
+        .name { font-size: 1.2em; font-weight: 900; color: white; display: block; }
+        .role { font-size: 0.7em; font-weight: 900; color: var(--accent); text-transform: uppercase; }
     </style>
 </head>
 <body>
 
 <header>
     <div class="clock" id="clock">00:00:00</div>
-    <div id="debugStatus" style="font-size: 0.8em; color: var(--accent); margin-top: 10px;">Recherche des données...</div>
+    <div style="font-size: 0.8em; margin-top: 5px; color:var(--accent);">ANALYSE DE STRUCTURE EN COURS...</div>
 </header>
 
-<section>
-    <h2>🟢 EFFECTIFS ACTUELS</h2>
-    <div class="grid-staff" id="staffOn"></div>
-</section>
+<div id="debugInfo" class="debug-panel">Recherche des clés de la base de données...</div>
 
-<section>
-    <h2 style="color:var(--off); border-color:var(--off);">⚪ REPOS / CONGÉS</h2>
-    <div class="grid-staff" id="staffOff"></div>
-</section>
+<div id="monitorBody" class="grid-staff"></div>
 
 <script>
     const firebaseConfig = { apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU", authDomain: "censeco-2026.firebaseapp.com", databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app", projectId: "censeco-2026", storageBucket: "censeco-2026.firebasestorage.app", messagingSenderId: "1030152312862", appId: "1:1030152312862:web:9618132ec2bcfc7831b60f" };
     firebase.initializeApp(firebaseConfig);
     
-    // On essaye les deux branches les plus probables
-    const branches = ['gantt', 'planning_data', 'tasks'];
-    
-    branches.forEach(path => {
-        firebase.database().ref(path).on('value', snap => {
-            const data = snap.val();
-            if (data) {
-                console.log("Données trouvées dans :", path);
-                let tasks = data.tasks ? Object.values(data.tasks) : Object.values(data);
-                processTasks(tasks);
+    const dbRef = firebase.database().ref(); 
+
+    dbRef.on('value', snap => {
+        const root = snap.val();
+        const debugDiv = document.getElementById('debugInfo');
+        
+        if (!root) {
+            debugDiv.innerText = "ERREUR : La base est totalement vide ou l'accès est refusé.";
+            return;
+        }
+
+        // AFFICHE LES CLÉS TROUVÉES POUR NOUS AIDER
+        const keys = Object.keys(root);
+        debugDiv.innerText = "CLÉS TROUVÉES À LA RACINE : " + keys.join(' | ') + "\n\n";
+
+        let foundTasks = [];
+
+        // SCANNER RECURSIF
+        function scan(obj, path = "") {
+            if (!obj || typeof obj !== 'object') return;
+            
+            // Si on trouve un objet qui ressemble à une tâche Gantt (caractéristiques de ton image 3)
+            if ((obj.text || obj.personName) && (obj.start_date || obj.start)) {
+                foundTasks.push(obj);
+            } else {
+                for (let key in obj) {
+                    scan(obj[key], path + "/" + key);
+                }
             }
-        });
+        }
+
+        scan(root);
+        debugDiv.innerText += "ÉLÉMENTS DÉTECTÉS : " + foundTasks.length;
+        
+        render(foundTasks);
     });
 
-    function processTasks(tasks) {
-        const onCont = document.getElementById('staffOn');
-        const offCont = document.getElementById('staffOff');
-        const now = new Date();
-        const nowVal = now.getHours() + (now.getMinutes() / 60);
+    function render(tasks) {
+        const body = document.getElementById('monitorBody');
+        if (tasks.length === 0) {
+            body.innerHTML = '<div style="grid-column:1/-1; text-align:center; opacity:0.5;">Aucun membre détecté. Regardez le panneau vert ci-dessus.</div>';
+            return;
+        }
 
-        let listOn = []; let listOff = [];
-
-        tasks.forEach(t => {
-            const name = t.text || t.personName;
-            if (!name || !t.start_date) return;
-
-            // On simplifie : si rowId est "CONGÉS", c'est du repos
-            const isOff = (t.rowId === 'CONGÉS' || t.rowId === 'CONGÉ');
-            
-            // Extraction heure de début
-            const startTime = t.start_date.split(' ')[1] || t.start_date;
-            
-            const card = { name: name.toUpperCase(), role: (t.rowId || 'MEMBRE').replace(/_/g, ' '), time: startTime };
-
-            if (isOff) listOff.push(card);
-            else listOn.push(card);
-        });
-
-        document.getElementById('debugStatus').innerText = (listOn.length + listOff.length) + " membres synchronisés";
-
-        const html = (d, cl) => `<div class="staff-card ${cl}"><div class="status-dot"></div><span class="role">${d.role}</span><span class="name">${d.name}</span><span class="time">🕒 Début: ${d.time}</span></div>`;
-        onCont.innerHTML = listOn.map(d => html(d, 'active')).join('');
-        offCont.innerHTML = listOff.map(d => html(d, 'off')).join('');
+        body.innerHTML = tasks.map(t => `
+            <div class="staff-card">
+                <span class="role">${(t.rowId || 'STAFF').replace(/_/g, ' ')}</span>
+                <span class="name">${(t.text || t.personName || 'INCONNU').toUpperCase()}</span>
+                <span style="font-size:0.8em; color:var(--fids);">${t.start_date || t.start || ''}</span>
+            </div>
+        `).join('');
     }
 
     setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString('fr-FR'); }, 1000);
