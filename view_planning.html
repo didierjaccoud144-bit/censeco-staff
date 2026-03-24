@@ -41,12 +41,12 @@
 </section>
 
 <section>
-    <h2 style="color:var(--next); border-color:var(--next);">⏳ PROCHAINS TOURNUS</h2>
+    <h2 style="color:var(--next); border-color:var(--next);">⏳ PROCHAINS TOURNUS (8H)</h2>
     <div class="grid-staff" id="staffNext"></div>
 </section>
 
 <section>
-    <h2 style="color:var(--off); border-color:var(--off);">⚪ REPOS / CONGÉS</h2>
+    <h2>⚪ REPOS / CONGÉS</h2>
     <div class="grid-staff" id="staffOff"></div>
 </section>
 
@@ -93,7 +93,7 @@
                 htmlOff += card.replace('{CL}', 'off');
             } else if (nowI >= s.sI && nowI < (s.sI + s.dur)) {
                 htmlOn += card.replace('{CL}', 'active');
-            } else if (s.sI > nowI && s.sI < nowI + 8) { // Prochaines 4h
+            } else if (s.sI > nowI && s.sI < nowI + 16) { // MODIFICATION ICI : +16 créneaux = 8 heures
                 htmlNext += card.replace('{CL}', 'upcoming');
             }
         });
