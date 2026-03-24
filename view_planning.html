@@ -3,131 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENSECO 2026 - EFFECTIFS LIVE</title>
+    <title>CENSECO 2026 - MONITOR V5.9</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
-        :root { --bg: #020617; --fids: #ffcc00; --accent: #38bdf8; --on: #22c55e; --off: #64748b; --next: #a855f7; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; box-sizing: border-box; }
-        header { border-bottom: 3px solid var(--fids); padding-bottom: 15px; margin-bottom: 10px; text-align: center; }
-        .clock { font-family: monospace; font-size: 2.8em; font-weight: 900; color: var(--fids); line-height: 1; }
-        .current-date { font-size: 1em; opacity: 0.8; margin-top: 10px; font-weight: 600; text-align: center; }
-        
-        section { margin-bottom: 30px; }
-        h2 { text-transform: uppercase; font-size: 0.9em; letter-spacing: 2px; color: var(--accent); border-left: 5px solid var(--accent); padding-left: 12px; margin: 20px 0 15px 0; }
-        
-        .grid-staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
-        .staff-card { background: #1e293b; border-radius: 12px; padding: 15px; border: 1px solid rgba(255,255,255,0.1); position: relative; }
-        .status-dot { position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; border-radius: 50%; background: var(--off); }
-        .active .status-dot { background: var(--on); box-shadow: 0 0 10px var(--on); }
-        .upcoming .status-dot { background: var(--next); box-shadow: 0 0 10px var(--next); }
-
-        .role { font-size: 0.65em; font-weight: 900; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 4px; }
-        .name { font-size: 1.1em; font-weight: 900; color: white; line-height: 1.2; }
-        .time { font-size: 0.8em; font-weight: 800; color: var(--fids); margin-top: 10px; display: block; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 4px; text-align: center; }
-        .empty-msg { opacity: 0.3; font-style: italic; font-size: 0.8em; }
+        :root { --bg: #020617; --fids: #ffcc00; --accent: #38bdf8; --on: #22c55e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; }
+        header { border-bottom: 3px solid var(--fids); padding-bottom: 15px; text-align: center; }
+        .clock { font-family: monospace; font-size: 2.5em; font-weight: 900; color: var(--fids); }
+        .grid-staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; margin-top: 20px; }
+        .staff-card { background: #1e293b; border-radius: 12px; padding: 15px; border: 1px solid var(--accent); position: relative; }
+        .name { font-size: 1.1em; font-weight: 900; color: white; display: block; }
+        .role { font-size: 0.7em; font-weight: 800; color: var(--accent); text-transform: uppercase; }
+        .debug-tag { font-size: 0.6em; opacity: 0.5; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px; }
     </style>
 </head>
 <body>
 
 <header>
     <div class="clock" id="clock">00:00:00</div>
-    <div id="fullDate" class="current-date">Chargement...</div>
+    <div id="status" style="font-size: 0.8em; color: var(--accent); margin-top: 10px;">Initialisation du scan profond...</div>
 </header>
 
-<section>
-    <h2>🟢 EN POSTE ACTUELLEMENT</h2>
-    <div class="grid-staff" id="staffOn"></div>
-</section>
-
-<section>
-    <h2 style="color:var(--next); border-color:var(--next);">⏳ PROCHAINS TOURNUS</h2>
-    <div class="grid-staff" id="staffNext"></div>
-</section>
-
-<section>
-    <h2 style="color:var(--off); border-color:var(--off);">⚪ REPOS / CONGÉS</h2>
-    <div class="grid-staff" id="staffOff"></div>
-</section>
+<div class="grid-staff" id="monitorBody"></div>
 
 <script>
     const firebaseConfig = { apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU", authDomain: "censeco-2026.firebaseapp.com", databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app", projectId: "censeco-2026", storageBucket: "censeco-2026.firebasestorage.app", messagingSenderId: "1030152312862", appId: "1:1030152312862:web:9618132ec2bcfc7831b60f" };
     firebase.initializeApp(firebaseConfig);
     
-    // SCANNER MULTI-BRANCHES : On inclut censeco-staff
-    const branches = ['censeco-staff', 'planning_pdg', 'planning_staff'];
-    const db = firebase.database();
+    const branches = ['censeco-staff', 'planning_pdg', 'planning_staff', 'tasks'];
+    let foundItems = [];
 
     function update() {
-        let liveTasks = [];
-        const todayStr = new Date().toISOString().split('T')[0];
-
-        // On scanne chaque branche potentielle
+        foundItems = [];
         branches.forEach(path => {
-            db.ref(path).once('value', snap => {
-                const root = snap.val();
-                if (!root) return;
-
-                function deepScan(obj) {
-                    if (!obj || typeof obj !== 'object') return;
-                    if ((obj.text || obj.personName) && obj.start_date) {
-                        const name = (obj.text || obj.personName);
-                        const date = obj.start_date.split(' ')[0] || obj.start_date.split('T')[0];
-                        // On ignore les vieux tests [CIV] et on prend AUJOURD'HUI
-                        if (!name.includes("[CIV]") && date === todayStr) {
-                            liveTasks.push(obj);
-                        }
-                    } else {
-                        Object.values(obj).forEach(v => deepScan(v));
-                    }
+            firebase.database().ref(path).once('value', snap => {
+                const data = snap.val();
+                if (data) {
+                    scan(data, path);
+                    render();
                 }
-                deepScan(root);
-                render(liveTasks);
             });
         });
     }
 
-    function render(tasks) {
-        const now = new Date();
-        const nowVal = now.getHours() + (now.getMinutes() / 60);
-
-        let htmlOn = "", htmlNext = "", htmlOff = "";
-
-        // Suppression des doublons si plusieurs branches répondent
-        const uniqueTasks = Array.from(new Set(tasks.map(a => JSON.stringify(a)))).map(a => JSON.parse(a));
-
-        uniqueTasks.forEach(t => {
-            const name = (t.text || t.personName).toUpperCase();
-            const timeStart = t.start_date.includes(' ') ? t.start_date.split(' ')[1] : t.start_date.split('T')[1]?.substring(0,5) || t.start_date;
-            const timeEnd = t.end_date ? (t.end_date.includes(' ') ? t.end_date.split(' ')[1] : t.end_date.split('T')[1]?.substring(0,5) || t.end_date) : "";
-            
-            const sH = parseFloat(timeStart.split(':')[0]) + (parseFloat(timeStart.split(':')[1])/60);
-            const eH = timeEnd ? parseFloat(timeEnd.split(':')[0]) + (parseFloat(timeEnd.split(':')[1])/60) : sH + 8;
-
-            const card = `<div class="staff-card {CL}"><div class="status-dot"></div><span class="role">${(t.rowId || 'STAFF').replace(/_/g, ' ')}</span><span class="name">${name}</span><span class="time">🕒 ${timeStart} ${timeEnd ? '- ' + timeEnd : ''}</span></div>`;
-
-            if (t.rowId === 'CONGÉS' || t.rowId === 'CONGÉ') {
-                htmlOff += card.replace('{CL}', 'off');
-            } else if (nowVal >= sH && nowVal < eH) {
-                htmlOn += card.replace('{CL}', 'active');
-            } else if (sH > nowVal && sH < nowVal + 4) {
-                htmlNext += card.replace('{CL}', 'upcoming');
-            }
-        });
-
-        document.getElementById('staffOn').innerHTML = htmlOn || '<div class="empty-msg">Aucun effectif en poste</div>';
-        document.getElementById('staffNext').innerHTML = htmlNext || '<div class="empty-msg">Aucune relève proche</div>';
-        document.getElementById('staffOff').innerHTML = htmlOff || '<div class="empty-msg">-</div>';
+    function scan(obj, source) {
+        if (!obj || typeof obj !== 'object') return;
+        
+        // On cherche le nom (text ou personName)
+        const name = obj.text || obj.personName || obj.label;
+        if (name && typeof name === 'string' && name.length > 2 && !name.includes("[CIV]")) {
+            foundItems.push({
+                name: name.toUpperCase(),
+                role: (obj.rowId || 'MEMBRE').replace(/_/g, ' '),
+                date: obj.start_date || obj.start || '?',
+                src: source
+            });
+        } else {
+            Object.values(obj).forEach(v => scan(v, source));
+        }
     }
 
-    setInterval(update, 30000); // Mise à jour toutes les 30s
-    update();
+    function render() {
+        const body = document.getElementById('monitorBody');
+        document.getElementById('status').innerText = foundItems.length + " éléments trouvés dans la base.";
 
-    setInterval(() => {
-        const n = new Date();
-        document.getElementById('clock').innerText = n.toLocaleTimeString('fr-FR');
-        document.getElementById('fullDate').innerText = `Nous sommes le ${n.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}`;
-    }, 1000);
+        if (foundItems.length === 0) {
+            body.innerHTML = '<div style="grid-column:1/-1; text-align:center; opacity:0.4;">Aucune donnée trouvée. Vérifiez la branche de votre Master.</div>';
+            return;
+        }
+
+        // Tri par nom pour y voir clair
+        foundItems.sort((a, b) => a.name.localeCompare(b.name));
+
+        body.innerHTML = foundItems.map(d => `
+            <div class="staff-card">
+                <span class="role">${d.role}</span>
+                <span class="name">${d.name}</span>
+                <div class="debug-tag">Source: ${d.src}<br>Date: ${d.date}</div>
+            </div>
+        `).join('');
+    }
+
+    setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString('fr-FR'); }, 1000);
+    update();
+    setInterval(update, 15000); // Scan toutes les 15s
 </script>
 </body>
 </html>
