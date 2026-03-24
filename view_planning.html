@@ -3,96 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENSECO 2026 - PLANNING DIAGNOSTIC</title>
+    <title>CENSECO 2026 - PLANNING MONITOR</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
-        :root { --bg: #020617; --fids: #ffcc00; --accent: #38bdf8; --on: #22c55e; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; }
-        header { border-bottom: 3px solid var(--fids); padding-bottom: 10px; text-align: center; }
-        .clock { font-family: monospace; font-size: 2em; font-weight: 900; color: var(--fids); }
-        
-        .debug-panel { 
-            background: #000; color: #0f0; font-family: monospace; 
-            padding: 15px; border: 1px solid #0f0; border-radius: 8px;
-            margin: 20px 0; font-size: 0.8em; max-height: 200px; overflow-y: auto;
-        }
-
+        :root { --bg: #020617; --fids: #ffcc00; --accent: #38bdf8; --on: #22c55e; --off: #64748b; --next: #a855f7; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; box-sizing: border-box; }
+        header { border-bottom: 3px solid var(--fids); padding-bottom: 15px; margin-bottom: 20px; text-align: center; }
+        .clock { font-family: monospace; font-size: 2.5em; font-weight: 900; color: var(--fids); line-height: 1; }
+        .current-date { font-size: 1.1em; opacity: 0.8; margin-top: 8px; font-weight: 600; }
+        h2 { text-transform: uppercase; font-size: 0.9em; letter-spacing: 2px; color: var(--accent); border-left: 5px solid var(--accent); padding-left: 12px; margin: 30px 0 15px 0; }
         .grid-staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
-        .staff-card { background: #1e293b; border-radius: 12px; padding: 15px; border: 1px solid var(--accent); position: relative; }
-        .name { font-size: 1.2em; font-weight: 900; color: white; display: block; }
-        .role { font-size: 0.7em; font-weight: 900; color: var(--accent); text-transform: uppercase; }
+        .staff-card { background: #1e293b; border-radius: 12px; padding: 12px; border: 1px solid rgba(255,255,255,0.1); position: relative; }
+        .status-dot { position: absolute; top: 10px; right: 10px; width: 8px; height: 8px; border-radius: 50%; background: var(--off); }
+        .active .status-dot { background: var(--on); box-shadow: 0 0 8px var(--on); }
+        .upcoming .status-dot { background: var(--next); box-shadow: 0 0 8px var(--next); }
+        .role { font-size: 0.65em; font-weight: 900; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 3px; }
+        .name { font-size: 1.1em; font-weight: 900; color: white; }
+        .time-range { font-size: 0.85em; font-weight: 800; color: var(--fids); margin-top: 8px; display: block; }
+        .empty-msg { opacity: 0.2; font-style: italic; font-size: 0.8em; padding: 10px; }
     </style>
 </head>
 <body>
 
 <header>
     <div class="clock" id="clock">00:00:00</div>
-    <div style="font-size: 0.8em; margin-top: 5px; color:var(--accent);">ANALYSE DE STRUCTURE EN COURS...</div>
+    <div id="fullDate" class="current-date">Chargement...</div>
 </header>
 
-<div id="debugInfo" class="debug-panel">Recherche des clés de la base de données...</div>
+<section>
+    <h2>🟢 EN POSTE (AUJOURD'HUI)</h2>
+    <div class="grid-staff" id="staffOn"></div>
+</section>
 
-<div id="monitorBody" class="grid-staff"></div>
+<section>
+    <h2 style="color:var(--next); border-color:var(--next);">⏳ PROCHAINS TOURNUS (À VENIR)</h2>
+    <div class="grid-staff" id="staffNext"></div>
+</section>
+
+<section>
+    <h2 style="color:#94a3b8; border-color:#475569;">⚪ REPOS / CONGÉS</h2>
+    <div class="grid-staff" id="staffOff"></div>
+</section>
 
 <script>
     const firebaseConfig = { apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU", authDomain: "censeco-2026.firebaseapp.com", databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app", projectId: "censeco-2026", storageBucket: "censeco-2026.firebasestorage.app", messagingSenderId: "1030152312862", appId: "1:1030152312862:web:9618132ec2bcfc7831b60f" };
     firebase.initializeApp(firebaseConfig);
     
-    const dbRef = firebase.database().ref(); 
+    // CORRECTION : On cible la branche "planning_pdg" identifiée via le diagnostic
+    const dbRef = firebase.database().ref('planning_pdg'); 
 
     dbRef.on('value', snap => {
         const root = snap.val();
-        const debugDiv = document.getElementById('debugInfo');
-        
-        if (!root) {
-            debugDiv.innerText = "ERREUR : La base est totalement vide ou l'accès est refusé.";
-            return;
-        }
-
-        // AFFICHE LES CLÉS TROUVÉES POUR NOUS AIDER
-        const keys = Object.keys(root);
-        debugDiv.innerText = "CLÉS TROUVÉES À LA RACINE : " + keys.join(' | ') + "\n\n";
-
-        let foundTasks = [];
-
-        // SCANNER RECURSIF
-        function scan(obj, path = "") {
-            if (!obj || typeof obj !== 'object') return;
-            
-            // Si on trouve un objet qui ressemble à une tâche Gantt (caractéristiques de ton image 3)
-            if ((obj.text || obj.personName) && (obj.start_date || obj.start)) {
-                foundTasks.push(obj);
-            } else {
-                for (let key in obj) {
-                    scan(obj[key], path + "/" + key);
-                }
-            }
-        }
-
-        scan(root);
-        debugDiv.innerText += "ÉLÉMENTS DÉTECTÉS : " + foundTasks.length;
-        
-        render(foundTasks);
+        // Dans un moteur Gantt, les données sont souvent dans .tasks
+        let tasks = root && root.tasks ? Object.values(root.tasks) : [];
+        renderView(tasks);
     });
 
-    function render(tasks) {
-        const body = document.getElementById('monitorBody');
-        if (tasks.length === 0) {
-            body.innerHTML = '<div style="grid-column:1/-1; text-align:center; opacity:0.5;">Aucun membre détecté. Regardez le panneau vert ci-dessus.</div>';
-            return;
-        }
+    function renderView(tasks) {
+        const onCont = document.getElementById('staffOn');
+        const nextCont = document.getElementById('staffNext');
+        const offCont = document.getElementById('staffOff');
+        
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0]; // "YYYY-MM-DD"
+        const nowVal = now.getHours() + (now.getMinutes() / 60);
 
-        body.innerHTML = tasks.map(t => `
-            <div class="staff-card">
-                <span class="role">${(t.rowId || 'STAFF').replace(/_/g, ' ')}</span>
-                <span class="name">${(t.text || t.personName || 'INCONNU').toUpperCase()}</span>
-                <span style="font-size:0.8em; color:var(--fids);">${t.start_date || t.start || ''}</span>
-            </div>
-        `).join('');
+        let listOn = []; let listNext = []; let listOff = [];
+
+        tasks.forEach(t => {
+            const pName = t.personName || t.text;
+            if (!pName || !t.start_date) return;
+
+            // t.start_date est au format "YYYY-MM-DD HH:mm"
+            const datePart = t.start_date.split(' ')[0];
+            const timeStart = t.start_date.split(' ')[1];
+            const timeEnd = t.end_date ? t.end_date.split(' ')[1] : "";
+
+            // Calcul numérique des heures
+            const sH = parseFloat(timeStart.split(':')[0]) + (parseFloat(timeStart.split(':')[1])/60);
+            const eH = timeEnd ? parseFloat(timeEnd.split(':')[0]) + (parseFloat(timeEnd.split(':')[1])/60) : sH + 8;
+
+            const card = {
+                name: pName.toUpperCase(),
+                role: (t.rowId || 'STAFF').replace(/_/g, ' '),
+                time: `${timeStart} - ${timeEnd || '??'}`
+            };
+
+            // FILTRE DATE : Uniquement aujourd'hui
+            if (datePart === todayStr) {
+                if (t.rowId === 'CONGÉS' || t.rowId === 'CONGÉ') {
+                    listOff.push(card);
+                } else if (nowVal >= sH && nowVal < eH) {
+                    listOn.push(card);
+                } else if (sH > nowVal && sH < nowVal + 6) { // On voit les 6 prochaines heures
+                    listNext.push(card);
+                }
+            }
+        });
+
+        const html = (d, cl) => `<div class="staff-card ${cl}"><div class="status-dot"></div><span class="role">${d.role}</span><span class="name">${d.name}</span><span class="time-range">${d.time}</span></div>`;
+
+        onCont.innerHTML = listOn.length ? listOn.map(d => html(d, 'active')).join('') : '<div class="empty-msg">Aucun effectif en poste.</div>';
+        nextCont.innerHTML = listNext.length ? listNext.map(d => html(d, 'upcoming')).join('') : '<div class="empty-msg">Pas de relève proche.</div>';
+        offCont.innerHTML = listOff.length ? listOff.map(d => html(d, 'off')).join('') : '<div class="empty-msg">-</div>';
     }
 
-    setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString('fr-FR'); }, 1000);
+    function updateClock() {
+        const n = new Date();
+        document.getElementById('clock').innerText = n.toLocaleTimeString('fr-FR');
+        document.getElementById('fullDate').innerText = `Nous sommes le ${n.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}`;
+    }
+    setInterval(updateClock, 1000); updateClock();
 </script>
 </body>
 </html>
