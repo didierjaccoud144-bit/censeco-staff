@@ -2,40 +2,27 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>CENSECO 2026 - PLANNING PROTOCONTROL V1.8</title>
+    <title>CENSECO 2026 - MASTER PLANNING PRO</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
-        :root {
-            --bg: #0f172a; --card: #1e293b; --text: #f1f5f9;
-            --accent: #4338ca; --fids: #ffcc00; --live: #dc2626;
-            --row-h: 45px; --col-w: 120px; --lab-w: 180px;
-        }
+        :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --accent: #4338ca; --fids: #ffcc00; --live: #dc2626; --row-h: 45px; --col-w: 120px; --lab-w: 180px; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        header { background: #000; padding: 15px 20px; border-bottom: 2px solid var(--fids); flex-shrink: 0; }
-        
-        /* PANEL SAISIE */
-        .pnl { background: var(--card); padding: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; border-radius: 8px; margin-top: 10px; border: 1px solid #334155; }
+        header { background: #000; padding: 10px 20px; border-bottom: 2px solid var(--fids); flex-shrink: 0; }
+        .pnl { background: var(--card); padding: 10px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; border-radius: 8px; margin-top: 5px; border: 1px solid #334155; }
         .ig { display: flex; flex-direction: column; gap: 3px; }
-        label { font-size: 0.65em; font-weight: 900; color: var(--fids); text-transform: uppercase; }
-        select, input { background: #0f172a; border: 1px solid #334155; color: white; padding: 6px; border-radius: 4px; font-weight: bold; }
-        .btn-v { background: #15803d; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: 900; cursor: pointer; }
-
-        /* GRID */
+        label { font-size: 0.6em; font-weight: 900; color: var(--fids); text-transform: uppercase; }
+        select, input { background: #0f172a; border: 1px solid #334155; color: white; padding: 5px; border-radius: 4px; font-weight: bold; font-size: 0.9em; }
+        .btn-v { background: #15803d; color: white; border: none; padding: 8px 15px; border-radius: 4px; font-weight: 900; cursor: pointer; }
         .plan-wrap { flex: 1; overflow: auto; padding: 20px; position: relative; }
         .grid { display: grid; grid-template-columns: var(--lab-w) repeat(48, var(--col-w)); background: var(--card); border: 1px solid #334155; position: relative; width: max-content; }
         .h-time { background: #000; color: var(--fids); font-weight: 900; font-size: 0.75em; text-align: center; padding: 12px 0; border-bottom: 2px solid var(--fids); position: sticky; top: 0; z-index: 20; border-right: 1px solid #334155; }
         .l-post { background: #000; color: white; font-weight: 900; font-size: 0.75em; padding-left: 15px; display: flex; align-items: center; border-bottom: 1px solid #334155; position: sticky; left: 0; z-index: 15; height: var(--row-h); border-right: 2px solid var(--fids); }
         .cell { height: var(--row-h); border-bottom: 1px solid rgba(148, 163, 184, 0.1); border-right: 1px solid rgba(148, 163, 184, 0.1); position: relative; }
-
-        /* SHIFTS */
-        .s-blk { position: absolute; top: 4px; border-radius: 4px; display: flex; align-items: center; padding-left: 10px; font-weight: 900; font-size: 0.8em; color: white; border: 1px solid rgba(255,255,255,0.2); z-index: 5; height: 37px; box-shadow: 2px 0 5px rgba(0,0,0,0.2); }
+        .s-blk { position: absolute; top: 4px; border-radius: 4px; display: flex; align-items: center; padding-left: 10px; font-weight: 900; font-size: 0.8em; color: white; border: 1px solid rgba(255,255,255,0.2); z-index: 5; height: 37px; }
         .s-blk.cng { background: #475569 !important; border-left: 4px solid #94a3b8; }
-        .l-cng { grid-column: 2 / span 48; background: rgba(15, 23, 42, 0.8); position: relative; border-bottom: 1px solid #334155; }
         #nowL { position: absolute; top: 0; bottom: 0; width: 3px; background: var(--live); z-index: 100; pointer-events: none; box-shadow: 0 0 15px var(--live); }
         .b-del { margin-left: auto; margin-right: 8px; background: rgba(0,0,0,0.4); color: white; border: none; border-radius: 50%; cursor: pointer; width: 18px; height: 18px; font-size: 10px; }
-
-        /* MODAL EQUIPE */
         #modEq { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e293b; padding: 20px; border-radius: 12px; border: 2px solid var(--fids); z-index: 1000; width: 300px; }
     </style>
 </head>
@@ -43,8 +30,9 @@
 
 <header>
     <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div style="font-weight:900;">CENSECO 2026 - <span style="color:var(--fids)">PLANNING PROTOCONTROL</span></div>
-        <div id="clock" style="font-family:monospace; color:var(--fids); font-weight:900; font-size: 1.2em;">00:00:00</div>
+        <div style="font-weight:900;">CENSECO 2026 - <span style="color:var(--fids)">PLANNING PRO</span></div>
+        <div class="ig"><input type="date" id="planDate" onchange="loadDay()"></div>
+        <div id="clock" style="font-family:monospace; color:var(--fids); font-weight:900;">00:00:00</div>
     </div>
     <div class="pnl">
         <div class="ig"><label>Personnel</label><select id="selP"></select></div>
@@ -57,28 +45,24 @@
         <div class="ig"><label>Début</label><input type="time" id="sH" step="1800" value="08:00"></div>
         <div class="ig"><label>Fin</label><input type="time" id="eH" step="1800" value="12:00"></div>
         <button class="btn-v" onclick="addSh()">VALIDER</button>
-        <button onclick="openEq()" style="background:#334155; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer; font-size:0.7em;">⚙️ ÉQUIPE</button>
-        <button onclick="scNow()" style="background:#334155; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer; font-size:0.7em; margin-left:auto;">🎯 LIVE</button>
+        <button onclick="openEq()" style="background:#334155; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-size:0.7em;">⚙️ ÉQUIPE</button>
     </div>
 </header>
 
-<div class="plan-wrap" id="scA">
-    <div class="grid" id="grM"></div>
-</div>
+<div class="plan-wrap" id="scA"><div class="grid" id="grM"></div></div>
 
 <div id="modEq">
-    <h4 style="margin-top:0">Gestion d'Équipe</h4>
-    <input type="text" id="newN" placeholder="Nom du membre..." style="margin-bottom:10px">
+    <h4>Équipe</h4>
+    <input type="text" id="newN" placeholder="Nom..." style="width:100%; margin-bottom:10px">
     <button onclick="addMem()" style="width:100%; background:var(--accent); color:white; border:none; padding:8px; margin-bottom:10px">Ajouter</button>
     <div id="listEq" style="max-height:150px; overflow:auto; font-size:0.8em; background:#0f172a; padding:5px"></div>
     <button onclick="closeEq()" style="width:100%; margin-top:10px; background:transparent; color:white; border:1px solid #444">Fermer</button>
 </div>
 
 <script>
-    // CONFIG FIREBASE (Branche planning séparée)
     const firebaseConfig = { apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU", authDomain: "censeco-2026.firebaseapp.com", databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app", projectId: "censeco-2026", storageBucket: "censeco-2026.firebasestorage.app", messagingSenderId: "1030152312862", appId: "1:1030152312862:web:9618132ec2bcfc7831b60f" };
     firebase.initializeApp(firebaseConfig);
-    const planRef = firebase.database().ref('planning_pdg');
+    const db = firebase.database();
 
     const fcts = ["M C PDG", "C CenSeco", "Adj C CenSeco", "Rég 1", "Rég 2", "Rég piquet", "AIC C CenSeco", "AIC Rég 1", "AIC Rég 2", "Teneur d'affiche", "Rég Héli"];
     const clrs = ["#4338ca", "#059669", "#d97706", "#7c3aed", "#be185d", "#0369a1", "#1e40af", "#065f46", "#92400e", "#6b21a8", "#b91c1c"];
@@ -87,17 +71,24 @@
     let shifts = [];
 
     window.onload = () => {
-        planRef.on('value', snap => {
-            const data = snap.val();
-            if(data) {
-                shifts = data.shifts || [];
-                if(data.members) members = data.members;
-            }
-            initG();
-            updateSels();
-        });
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('planDate').value = today;
+        loadDay();
         setInterval(upLive, 1000);
     };
+
+    function loadDay() {
+        const date = document.getElementById('planDate').value;
+        db.ref('planning_pdg/' + date).on('value', snap => {
+            const data = snap.val();
+            shifts = data ? (data.shifts || []) : [];
+            initG();
+        });
+        db.ref('planning_pdg/config/members').on('value', snap => {
+            if(snap.val()) members = snap.val();
+            updateSels();
+        });
+    }
 
     function initG() {
         const g = document.getElementById('grM');
@@ -110,59 +101,55 @@
             h += `<div class="l-post">${p}</div>`;
             for(let j=0; j<48; j++) h += `<div class="cell" id="s-${i}-${j}"></div>`;
         });
-        h += `<div class="l-post" style="color:var(--fids)" id="lC">CONGÉS</div><div class="l-cng" id="cC"></div><div id="nowL"></div>`;
+        h += `<div class="l-post" id="lC">CONGÉS</div><div class="l-cng" id="cC" style="grid-column:2/span 48; position:relative;"></div><div id="nowL"></div>`;
         g.innerHTML = h;
         renderS();
     }
 
     function renderS() {
-        document.querySelectorAll('.cell').forEach(c => c.innerHTML = '');
-        const cC = document.getElementById('cC'), lC = document.getElementById('lC');
-        if(!cC) return; cC.innerHTML = '';
-        let cLvl = [];
-
+        const cC = document.getElementById('cC');
         shifts.forEach(s => {
-            if(s.pVal === "cng") {
-                let lv = 0; while(cLvl[lv] && cLvl[lv].some(b => !(s.sI >= b.e || (s.sI + s.dur) <= b.s))) lv++;
-                if(!cLvl[lv]) cLvl[lv] = []; cLvl[lv].push({s:s.sI, e:s.sI+s.dur});
-                const d = document.createElement('div'); d.className = 's-blk cng';
-                d.style.width = (s.dur*120-8)+"px"; d.style.left = (s.sI*120+4)+"px"; d.style.top = (lv*45+4)+"px";
-                d.innerHTML = `<span>🏖️ ${s.n.toUpperCase()}</span><button class="b-del" onclick="delS(${s.id})">×</button>`;
-                cC.appendChild(d);
-            } else {
-                const p = document.getElementById(`s-${s.pVal}-${s.sI}`);
-                if(p) {
-                    const d = document.createElement('div'); d.className = 's-blk';
-                    d.style.width = (s.dur*120-8)+"px"; d.style.left = "4px"; d.style.backgroundColor = clrs[s.pVal];
-                    d.innerHTML = `<span>${s.n.toUpperCase()}</span><button class="b-del" onclick="delS(${s.id})">×</button>`;
-                    p.appendChild(d);
-                }
-            }
+            const d = document.createElement('div');
+            d.className = 's-blk' + (s.pVal === "cng" ? " cng" : "");
+            d.style.width = (s.dur*120-8)+"px";
+            d.style.left = (s.pVal === "cng" ? (s.sI*120+4) : 4) + "px";
+            if(s.pVal !== "cng") d.style.backgroundColor = clrs[s.pVal];
+            d.innerHTML = `<span>${s.n.toUpperCase()}</span><button class="b-del" onclick="delS(${s.id})">×</button>`;
+            if(s.pVal === "cng") cC.appendChild(d); 
+            else { const cell = document.getElementById(`s-${s.pVal}-${s.sI}`); if(cell) cell.appendChild(d); }
         });
-        const max = Math.max(cLvl.length, 1);
-        cC.style.height = (max*45)+"px"; lC.style.height = (max*45)+"px";
     }
 
     function addSh() {
+        const date = document.getElementById('planDate').value;
         const n = document.getElementById('selP').value, pVal = document.getElementById('selF').value;
         const sI = tToI(document.getElementById('sH').value), eI = tToI(document.getElementById('eH').value);
         if(eI <= sI) return alert("Heure invalide");
         shifts.push({ id:Date.now(), n, pVal, sI, dur: eI-sI });
-        planRef.update({ shifts });
+        db.ref('planning_pdg/' + date).update({ shifts });
     }
 
     function tToI(t) { const [h,m] = t.split(':').map(Number); return h*2 + (m>=30?1:0); }
-    function delS(id) { shifts = shifts.filter(x => x.id !== id); planRef.update({ shifts }); }
+    function delS(id) { 
+        const date = document.getElementById('planDate').value;
+        shifts = shifts.filter(x => x.id !== id); 
+        db.ref('planning_pdg/' + date).update({ shifts }); 
+    }
     function updateSels() {
-        const s = document.getElementById('selP'); s.innerHTML = members.map(m => `<option>${m}</option>`).join('');
+        document.getElementById('selP').innerHTML = members.map(m => `<option>${m}</option>`).join('');
         document.getElementById('listEq').innerHTML = members.map(m => `<div style="display:flex; justify-content:space-between; margin-bottom:5px"><span>${m}</span><span onclick="delMem('${m}')" style="color:red; cursor:pointer">×</span></div>`).join('');
     }
     function openEq() { document.getElementById('modEq').style.display='block'; }
     function closeEq() { document.getElementById('modEq').style.display='none'; }
-    function addMem() { const n = document.getElementById('newN').value; if(n){ members.push(n); planRef.update({ members }); document.getElementById('newN').value=''; }}
-    function delMem(n) { members = members.filter(x => x !== n); planRef.update({ members }); }
-    function scNow() { const n = new Date(); const p = 180 + (((n.getHours()*60)+n.getMinutes()) * (120/30)); document.getElementById('scA').scrollLeft = p - (60*(120/30)) - 180; }
-    function upLive() { const n = new Date(); const l = 180 + (((n.getHours()*60)+n.getMinutes()) * (4)); const line = document.getElementById('nowL'); if(line) line.style.left = l+"px"; document.getElementById('clock').innerText = n.toLocaleTimeString('fr-FR'); }
+    function addMem() { const n = document.getElementById('newN').value; if(n){ members.push(n); db.ref('planning_pdg/config').update({ members }); document.getElementById('newN').value=''; }}
+    function delMem(n) { members = members.filter(x => x !== n); db.ref('planning_pdg/config').update({ members }); }
+    function upLive() {
+        const n = new Date();
+        const l = 180 + (((n.getHours()*60)+n.getMinutes()) * (4));
+        const line = document.getElementById('nowL');
+        if(line) line.style.left = l+"px";
+        document.getElementById('clock').innerText = n.toLocaleTimeString('fr-FR');
+    }
 </script>
 </body>
 </html>
