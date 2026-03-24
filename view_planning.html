@@ -11,14 +11,13 @@
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; box-sizing: border-box; }
         header { border-bottom: 3px solid var(--fids); padding-bottom: 15px; margin-bottom: 10px; text-align: center; }
         .clock { font-family: monospace; font-size: 2.8em; font-weight: 900; color: var(--fids); line-height: 1; }
-        .current-date { font-size: 1em; opacity: 0.8; margin-top: 10px; font-weight: 600; text-align: right; }
+        .current-date { font-size: 1em; opacity: 0.8; margin-top: 10px; font-weight: 600; text-align: center; }
         
         section { margin-bottom: 30px; }
         h2 { text-transform: uppercase; font-size: 0.9em; letter-spacing: 2px; color: var(--accent); border-left: 5px solid var(--accent); padding-left: 12px; margin: 20px 0 15px 0; }
         
         .grid-staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
         .staff-card { background: #1e293b; border-radius: 12px; padding: 15px; border: 1px solid rgba(255,255,255,0.1); position: relative; }
-        
         .status-dot { position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; border-radius: 50%; background: var(--off); }
         .active .status-dot { background: var(--on); box-shadow: 0 0 10px var(--on); }
         .upcoming .status-dot { background: var(--next); box-shadow: 0 0 10px var(--next); }
@@ -26,8 +25,7 @@
         .role { font-size: 0.65em; font-weight: 900; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 4px; }
         .name { font-size: 1.1em; font-weight: 900; color: white; line-height: 1.2; }
         .time { font-size: 0.8em; font-weight: 800; color: var(--fids); margin-top: 10px; display: block; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 4px; text-align: center; }
-        
-        .empty-msg { opacity: 0.3; font-style: italic; font-size: 0.8em; padding-left: 15px; }
+        .empty-msg { opacity: 0.3; font-style: italic; font-size: 0.8em; }
     </style>
 </head>
 <body>
@@ -56,37 +54,38 @@
     const firebaseConfig = { apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU", authDomain: "censeco-2026.firebaseapp.com", databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app", projectId: "censeco-2026", storageBucket: "censeco-2026.firebasestorage.app", messagingSenderId: "1030152312862", appId: "1:1030152312862:web:9618132ec2bcfc7831b60f" };
     firebase.initializeApp(firebaseConfig);
     
-    // On scanne la racine pour être certain de ne rater aucune branche active
-    const dbRef = firebase.database().ref();
+    // SCANNER MULTI-BRANCHES : On inclut censeco-staff
+    const branches = ['censeco-staff', 'planning_pdg', 'planning_staff'];
+    const db = firebase.database();
 
-    dbRef.on('value', snap => {
-        const root = snap.val();
-        if (!root) return;
-
+    function update() {
         let liveTasks = [];
         const todayStr = new Date().toISOString().split('T')[0];
 
-        // Fonction de scan profond
-        function deepScan(obj) {
-            if (!obj || typeof obj !== 'object') return;
-            
-            // Si l'objet a un nom et une date
-            if ((obj.text || obj.personName) && obj.start_date) {
-                const name = (obj.text || obj.personName);
-                const date = obj.start_date.split(' ')[0] || obj.start_date.split('T')[0];
-                
-                // CRITÈRE : Pas de "[CIV]" et date = aujourd'hui
-                if (!name.includes("[CIV]") && date === todayStr) {
-                    liveTasks.push(obj);
-                }
-            } else {
-                Object.values(obj).forEach(v => deepScan(v));
-            }
-        }
+        // On scanne chaque branche potentielle
+        branches.forEach(path => {
+            db.ref(path).once('value', snap => {
+                const root = snap.val();
+                if (!root) return;
 
-        deepScan(root);
-        render(liveTasks);
-    });
+                function deepScan(obj) {
+                    if (!obj || typeof obj !== 'object') return;
+                    if ((obj.text || obj.personName) && obj.start_date) {
+                        const name = (obj.text || obj.personName);
+                        const date = obj.start_date.split(' ')[0] || obj.start_date.split('T')[0];
+                        // On ignore les vieux tests [CIV] et on prend AUJOURD'HUI
+                        if (!name.includes("[CIV]") && date === todayStr) {
+                            liveTasks.push(obj);
+                        }
+                    } else {
+                        Object.values(obj).forEach(v => deepScan(v));
+                    }
+                }
+                deepScan(root);
+                render(liveTasks);
+            });
+        });
+    }
 
     function render(tasks) {
         const now = new Date();
@@ -94,7 +93,10 @@
 
         let htmlOn = "", htmlNext = "", htmlOff = "";
 
-        tasks.forEach(t => {
+        // Suppression des doublons si plusieurs branches répondent
+        const uniqueTasks = Array.from(new Set(tasks.map(a => JSON.stringify(a)))).map(a => JSON.parse(a));
+
+        uniqueTasks.forEach(t => {
             const name = (t.text || t.personName).toUpperCase();
             const timeStart = t.start_date.includes(' ') ? t.start_date.split(' ')[1] : t.start_date.split('T')[1]?.substring(0,5) || t.start_date;
             const timeEnd = t.end_date ? (t.end_date.includes(' ') ? t.end_date.split(' ')[1] : t.end_date.split('T')[1]?.substring(0,5) || t.end_date) : "";
@@ -102,13 +104,7 @@
             const sH = parseFloat(timeStart.split(':')[0]) + (parseFloat(timeStart.split(':')[1])/60);
             const eH = timeEnd ? parseFloat(timeEnd.split(':')[0]) + (parseFloat(timeEnd.split(':')[1])/60) : sH + 8;
 
-            const card = `
-                <div class="staff-card {CL}">
-                    <div class="status-dot"></div>
-                    <span class="role">${(t.rowId || 'STAFF').replace(/_/g, ' ')}</span>
-                    <span class="name">${name}</span>
-                    <span class="time">🕒 ${timeStart} ${timeEnd ? '- ' + timeEnd : ''}</span>
-                </div>`;
+            const card = `<div class="staff-card {CL}"><div class="status-dot"></div><span class="role">${(t.rowId || 'STAFF').replace(/_/g, ' ')}</span><span class="name">${name}</span><span class="time">🕒 ${timeStart} ${timeEnd ? '- ' + timeEnd : ''}</span></div>`;
 
             if (t.rowId === 'CONGÉS' || t.rowId === 'CONGÉ') {
                 htmlOff += card.replace('{CL}', 'off');
@@ -123,6 +119,9 @@
         document.getElementById('staffNext').innerHTML = htmlNext || '<div class="empty-msg">Aucune relève proche</div>';
         document.getElementById('staffOff').innerHTML = htmlOff || '<div class="empty-msg">-</div>';
     }
+
+    setInterval(update, 30000); // Mise à jour toutes les 30s
+    update();
 
     setInterval(() => {
         const n = new Date();
