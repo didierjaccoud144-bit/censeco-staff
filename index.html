@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>CENSECO 2026 - MASTER PLANNING PRO</title>
+    <title>CENSECO 2026 - MASTER PLANNING PRO V2.1</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
@@ -13,63 +13,64 @@
         .ig { display: flex; flex-direction: column; gap: 3px; }
         label { font-size: 0.65em; font-weight: 900; color: var(--fids); text-transform: uppercase; letter-spacing: 1px; }
         select, input { background: #0f172a; border: 1px solid #4338ca; color: white; padding: 6px; border-radius: 4px; font-weight: bold; font-size: 0.9em; }
-        input[type="date"] { border-color: var(--fids); } /* Mise en évidence de la date */
         .btn-v { background: #15803d; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: 900; cursor: pointer; }
-        .btn-v:hover { background: #16a34a; }
         .plan-wrap { flex: 1; overflow: auto; padding: 20px; position: relative; scroll-behavior: smooth; }
         .grid { display: grid; grid-template-columns: var(--lab-w) repeat(48, var(--col-w)); background: var(--card); border: 1px solid #334155; position: relative; width: max-content; }
         .h-time { background: #000; color: var(--fids); font-weight: 900; font-size: 0.75em; text-align: center; padding: 12px 0; border-bottom: 2px solid var(--fids); position: sticky; top: 0; z-index: 20; border-right: 1px solid #334155; }
-        .l-post { background: #000; color: white; font-weight: 900; font-size: 0.75em; padding-left: 15px; display: flex; align-items: center; border-bottom: 1px solid #334155; position: sticky; left: 0; z-index: 15; height: var(--row-h); border-right: 2px solid var(--fids); }
+        .l-post { background: #000; color: white; font-weight: 900; font-size: 0.75em; padding-left: 15px; display: flex; align-items: center; border-bottom: 1px solid #334155; position: sticky; left: 0; z-index: 15; height: var(--row-h); border-right: 2px solid var(--fids); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .cell { height: var(--row-h); border-bottom: 1px solid rgba(148, 163, 184, 0.1); border-right: 1px solid rgba(148, 163, 184, 0.1); position: relative; }
         .s-blk { position: absolute; top: 4px; border-radius: 4px; display: flex; align-items: center; padding-left: 10px; font-weight: 900; font-size: 0.8em; color: white; border: 1px solid rgba(255,255,255,0.2); z-index: 5; height: 37px; box-shadow: 2px 2px 5px rgba(0,0,0,0.3); }
         .s-blk.cng { background: #475569 !important; border-left: 4px solid #94a3b8; }
         #nowL { position: absolute; top: 0; bottom: 0; width: 3px; background: var(--live); z-index: 100; pointer-events: none; box-shadow: 0 0 15px var(--live); }
         .b-del { margin-left: auto; margin-right: 8px; background: rgba(0,0,0,0.4); color: white; border: none; border-radius: 50%; cursor: pointer; width: 18px; height: 18px; font-size: 10px; }
-        #modEq { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e293b; padding: 20px; border-radius: 12px; border: 2px solid var(--fids); z-index: 1000; width: 300px; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+        
+        /* MODALS */
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e293b; padding: 20px; border-radius: 12px; border: 2px solid var(--fids); z-index: 1000; width: 320px; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+        .modal h4 { margin-top: 0; color: var(--fids); text-transform: uppercase; font-size: 0.9em; }
+        .list-box { max-height: 200px; overflow: auto; font-size: 0.85em; background: #0f172a; padding: 8px; border-radius: 4px; margin-top: 10px; }
+        .list-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #334155; padding-bottom: 4px; }
     </style>
 </head>
 <body>
 
 <header>
     <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div style="font-weight:900; font-size: 1.1em;">CENSECO 2026 - <span style="color:var(--fids)">PLANNING PROTOCONTROL</span></div>
+        <div style="font-weight:900; font-size: 1.1em;">CENSECO 2026 - <span style="color:var(--fids)">PLANNING PRO</span></div>
         <div id="clock" style="font-family:monospace; color:var(--fids); font-weight:900; font-size: 1.2em;">00:00:00</div>
     </div>
     
     <div class="pnl">
-        <div class="ig"><label>Date de mission</label><input type="date" id="planDate" onchange="loadDay()"></div>
-        
+        <div class="ig"><label>Date</label><input type="date" id="planDate" onchange="loadDay()"></div>
         <div class="ig"><label>Personnel</label><select id="selP"></select></div>
-        
-        <div class="ig"><label>Poste</label><select id="selF">
-            <option value="0">M C PDG</option><option value="1">C CenSeco</option><option value="2">Adj C CenSeco</option>
-            <option value="3">Rég 1</option><option value="4">Rég 2</option><option value="5">Rég piquet</option>
-            <option value="6">AIC C CenSeco</option><option value="7">AIC Rég 1</option><option value="8">AIC Rég 2</option>
-            <option value="9">Teneur d'affiche</option><option value="10">Rég Héli</option><option value="cng">🏖️ CONGÉ</option>
-        </select></div>
-        
+        <div class="ig"><label>Fonction</label><select id="selF"></select></div>
         <div class="ig"><label>Début</label><input type="time" id="sH" step="1800" value="08:00"></div>
         <div class="ig"><label>Fin</label><input type="time" id="eH" step="1800" value="12:00"></div>
-        
         <button class="btn-v" onclick="addSh()">VALIDER</button>
         
         <div style="margin-left: auto; display: flex; gap: 8px;">
             <button onclick="scNow()" style="background:var(--live); color:white; border:none; padding:10px 15px; border-radius:4px; cursor:pointer; font-weight:900;">🎯 LIVE</button>
-            <button onclick="openEq()" style="background:#334155; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer; font-size:0.8em;">⚙️ ÉQUIPE</button>
+            <button onclick="openMod('modEq')" style="background:#334155; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer; font-size:0.7em;">👥 ÉQUIPE</button>
+            <button onclick="openMod('modFct')" style="background:#334155; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer; font-size:0.7em;">🛠️ FONCTIONS</button>
         </div>
     </div>
 </header>
 
-<div class="plan-wrap" id="scA">
-    <div class="grid" id="grM"></div>
+<div class="plan-wrap" id="scA"><div class="grid" id="grM"></div></div>
+
+<div id="modEq" class="modal">
+    <h4>Gestion d'Équipe</h4>
+    <input type="text" id="newN" placeholder="Nom du membre..." style="width:100%; padding:8px; box-sizing:border-box;">
+    <button onclick="addItem('members', 'newN')" style="width:100%; background:var(--accent); color:white; border:none; padding:10px; margin-top:10px; border-radius:4px;">Ajouter</button>
+    <div id="listEq" class="list-box"></div>
+    <button onclick="closeMod('modEq')" style="width:100%; margin-top:15px; background:transparent; color:white; border:1px solid #444; padding:8px;">Fermer</button>
 </div>
 
-<div id="modEq">
-    <h4 style="margin-top:0">Gestion d'Équipe</h4>
-    <input type="text" id="newN" placeholder="Nom du membre..." style="width:100%; margin-bottom:10px; padding:8px; box-sizing:border-box;">
-    <button onclick="addMem()" style="width:100%; background:var(--accent); color:white; border:none; padding:10px; margin-bottom:10px; border-radius:4px; font-weight:bold;">Ajouter au staff</button>
-    <div id="listEq" style="max-height:200px; overflow:auto; font-size:0.85em; background:#0f172a; padding:8px; border-radius:4px;"></div>
-    <button onclick="closeEq()" style="width:100%; margin-top:15px; background:transparent; color:white; border:1px solid #444; padding:8px; cursor:pointer;">Fermer</button>
+<div id="modFct" class="modal">
+    <h4>Gestion des Fonctions</h4>
+    <input type="text" id="newF" placeholder="Libellé du poste..." style="width:100%; padding:8px; box-sizing:border-box;">
+    <button onclick="addItem('fcts', 'newF')" style="width:100%; background:var(--accent); color:white; border:none; padding:10px; margin-top:10px; border-radius:4px;">Ajouter</button>
+    <div id="listFct" class="list-box"></div>
+    <button onclick="closeMod('modFct')" style="width:100%; margin-top:15px; background:transparent; color:white; border:1px solid #444; padding:8px;">Fermer</button>
 </div>
 
 <script>
@@ -77,32 +78,33 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const fcts = ["M C PDG", "C CenSeco", "Adj C CenSeco", "Rég 1", "Rég 2", "Rég piquet", "AIC C CenSeco", "AIC Rég 1", "AIC Rég 2", "Teneur d'affiche", "Rég Héli"];
-    const clrs = ["#4338ca", "#059669", "#d97706", "#7c3aed", "#be185d", "#0369a1", "#1e40af", "#065f46", "#92400e", "#6b21a8", "#b91c1c"];
-    
-    let members = [];
+    let fcts = ["M C PDG", "C CenSeco", "Adj C CenSeco", "Rég 1", "Rég 2"];
+    let members = ["Kohlprath", "Jüni"];
     let shifts = [];
+    const clrs = ["#4338ca", "#059669", "#d97706", "#7c3aed", "#be185d", "#0369a1", "#1e40af", "#065f46", "#92400e", "#6b21a8", "#b91c1c", "#4f46e5", "#0891b2", "#7e22ce"];
 
     window.onload = () => {
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('planDate').value = today;
         loadDay();
         setInterval(upLive, 1000);
-        setTimeout(scNow, 1000); // Auto-scroll au chargement
     };
 
     function loadDay() {
         const date = document.getElementById('planDate').value;
-        // Écouter les shifts du jour sélectionné
-        db.ref('planning_pdg/' + date).on('value', snap => {
-            const data = snap.val();
-            shifts = data ? (data.shifts || []) : [];
-            initG();
-        });
-        // Écouter la liste globale des membres
-        db.ref('planning_pdg/config/members').on('value', snap => {
-            members = snap.val() || ["Kohlprath", "Jüni", "Eichenberger", "Arlettaz", "Chablais", "Jaccoud", "Apothéloz", "Beaud", "Bize", "Mezger"];
+        db.ref('planning_pdg/config').on('value', snap => {
+            const c = snap.val();
+            if(c) {
+                if(c.members) members = c.members;
+                if(c.fcts) fcts = c.fcts;
+            }
             updateSels();
+            // Recharger les shifts après avoir chargé les fonctions pour la grille
+            db.ref('planning_pdg/' + date).on('value', snap => {
+                const d = snap.val();
+                shifts = d ? (d.shifts || []) : [];
+                initG();
+            });
         });
     }
 
@@ -123,22 +125,16 @@
     }
 
     function renderS() {
-        const cC = document.getElementById('cC');
-        if(!cC) return;
+        const cC = document.getElementById('cC'); if(!cC) return;
         shifts.forEach(s => {
             const d = document.createElement('div');
             d.className = 's-blk' + (s.pVal === "cng" ? " cng" : "");
             d.style.width = (s.dur*120-8)+"px";
-            // Si congé, on positionne par rapport au début (sI), sinon c'est géré par la cellule parente
             d.style.left = (s.pVal === "cng" ? (s.sI*120+4) : 4) + "px";
-            if(s.pVal !== "cng") d.style.backgroundColor = clrs[s.pVal];
+            if(s.pVal !== "cng") d.style.backgroundColor = clrs[s.pVal % clrs.length];
             d.innerHTML = `<span>${s.n.toUpperCase()}</span><button class="b-del" onclick="delS(${s.id})">×</button>`;
-            
             if(s.pVal === "cng") cC.appendChild(d); 
-            else { 
-                const cell = document.getElementById(`s-${s.pVal}-${s.sI}`); 
-                if(cell) cell.appendChild(d); 
-            }
+            else { const cell = document.getElementById(`s-${s.pVal}-${s.sI}`); if(cell) cell.appendChild(d); }
         });
     }
 
@@ -146,8 +142,7 @@
         const date = document.getElementById('planDate').value;
         const n = document.getElementById('selP').value, pVal = document.getElementById('selF').value;
         const sI = tToI(document.getElementById('sH').value), eI = tToI(document.getElementById('eH').value);
-        if(eI <= sI) return alert("Heure de fin doit être après le début");
-        
+        if(eI <= sI) return alert("Heure invalide");
         shifts.push({ id:Date.now(), n, pVal, sI, dur: eI-sI });
         db.ref('planning_pdg/' + date).update({ shifts });
     }
@@ -162,31 +157,35 @@
 
     function updateSels() {
         document.getElementById('selP').innerHTML = members.map(m => `<option>${m}</option>`).join('');
-        document.getElementById('listEq').innerHTML = members.map(m => `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #334155; padding-bottom:4px;"><span>${m}</span><span onclick="delMem('${m}')" style="color:#ef4444; cursor:pointer; font-weight:bold; padding:0 5px;">×</span></div>`).join('');
+        document.getElementById('selF').innerHTML = fcts.map((f, i) => `<option value="${i}">${f}</option>`).join('') + `<option value="cng">🏖️ CONGÉ</option>`;
+        
+        document.getElementById('listEq').innerHTML = members.map(m => `<div class="list-item"><span>${m}</span><span onclick="removeItem('members', '${m}')" style="color:#ef4444; cursor:pointer">×</span></div>`).join('');
+        document.getElementById('listFct').innerHTML = fcts.map(f => `<div class="list-item"><span>${f}</span><span onclick="removeItem('fcts', '${f}')" style="color:#ef4444; cursor:pointer">×</span></div>`).join('');
     }
 
-    function openEq() { document.getElementById('modEq').style.display='block'; }
-    function closeEq() { document.getElementById('modEq').style.display='none'; }
+    function openMod(id) { document.getElementById(id).style.display='block'; }
+    function closeMod(id) { document.getElementById(id).style.display='none'; }
 
-    function addMem() { 
-        const n = document.getElementById('newN').value.trim(); 
-        if(n){ 
-            members.push(n); 
-            db.ref('planning_pdg/config').update({ members }); 
-            document.getElementById('newN').value=''; 
+    function addItem(type, inputId) {
+        const val = document.getElementById(inputId).value.trim();
+        if(val) {
+            if(type === 'members') members.push(val); else fcts.push(val);
+            db.ref('planning_pdg/config').update({ members, fcts });
+            document.getElementById(inputId).value = '';
         }
     }
 
-    function delMem(n) { 
-        if(confirm(`Supprimer ${n} de l'équipe ?`)) {
-            members = members.filter(x => x !== n); 
-            db.ref('planning_pdg/config').update({ members }); 
+    function removeItem(type, val) {
+        if(confirm(`Supprimer ${val} ?`)) {
+            if(type === 'members') members = members.filter(x => x !== val);
+            else fcts = fcts.filter(x => x !== val);
+            db.ref('planning_pdg/config').update({ members, fcts });
         }
     }
 
     function scNow() {
         const n = new Date();
-        const scrollPos = (n.getHours() * 2 * 120) - 240; // Centre à peu près sur l'heure actuelle
+        const scrollPos = (n.getHours() * 2 * 120) - 240;
         document.getElementById('scA').scrollLeft = Math.max(0, scrollPos);
     }
 
