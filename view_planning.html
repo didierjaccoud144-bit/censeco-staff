@@ -3,96 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENSECO 2026 - EFFECTIFS MONITOR</title>
+    <title>CENSECO 2026 - PLANNING MONITOR V4</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
         :root { 
             --bg: #020617; --fids: #ffcc00; --accent: #38bdf8; 
-            --on: #22c55e; --off: #64748b;
+            --on: #22c55e; --off: #64748b; --next: #a855f7;
         }
         
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; box-sizing: border-box; }
         
-        header { border-bottom: 3px solid var(--fids); padding-bottom: 10px; margin-bottom: 20px; text-align: center; }
-        .clock { font-family: monospace; font-size: 2em; font-weight: 900; color: var(--fids); }
-        .current-date { font-size: 1.1em; opacity: 0.8; margin-top: 5px; }
+        header { border-bottom: 3px solid var(--fids); padding-bottom: 15px; margin-bottom: 20px; text-align: center; }
+        .clock { font-family: monospace; font-size: 2.5em; font-weight: 900; color: var(--fids); line-height: 1; }
+        .current-date { font-size: 1.1em; opacity: 0.8; margin-top: 8px; font-weight: 600; }
         
-        h2 { text-transform: uppercase; font-size: 1.1em; letter-spacing: 2px; color: var(--accent); border-left: 5px solid var(--accent); padding-left: 10px; margin: 30px 0 15px 0; }
+        section { margin-bottom: 35px; }
+        h2 { text-transform: uppercase; font-size: 1em; letter-spacing: 2px; color: var(--accent); border-left: 5px solid var(--accent); padding-left: 12px; margin-bottom: 15px; }
+        .h-next { color: var(--next); border-left-color: var(--next); }
 
         .grid-staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
         
         .staff-card { 
             background: #1e293b; border-radius: 12px; padding: 15px; 
             border: 1px solid rgba(255,255,255,0.1); position: relative;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
         
         .status-dot { position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; border-radius: 50%; background: var(--off); }
-        .active .status-dot { background: var(--on); box-shadow: 0 0 8px var(--on); }
+        .active .status-dot { background: var(--on); box-shadow: 0 0 10px var(--on); }
+        .upcoming .status-dot { background: var(--next); box-shadow: 0 0 10px var(--next); }
 
-        .role { font-size: 0.7em; font-weight: 900; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 4px; }
-        .name { font-size: 1.3em; font-weight: 900; display: block; color: white; }
-        .time-range { font-size: 0.85em; font-weight: 700; color: var(--fids); margin-top: 8px; display: block; }
+        .role { font-size: 0.7em; font-weight: 900; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 5px; opacity: 0.8; }
+        .name { font-size: 1.2em; font-weight: 900; display: block; color: white; letter-spacing: 0.5px; }
+        .time-range { font-size: 0.9em; font-weight: 800; color: var(--fids); margin-top: 10px; display: block; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 4px; }
         
-        .empty-msg { opacity: 0.3; font-style: italic; padding: 20px; text-align: center; grid-column: 1/-1; font-size: 0.9em; }
+        .empty-msg { opacity: 0.3; font-style: italic; padding: 10px; font-size: 0.9em; }
     </style>
 </head>
 <body>
 
 <header>
     <div class="clock" id="clock">00:00:00</div>
-    <div id="fullDate" class="current-date">Chargement...</div>
+    <div id="fullDate" class="current-date">Chargement de la date...</div>
 </header>
 
-<h2>🟢 EN POSTE ACTUELLEMENT</h2>
-<div class="grid-staff" id="staffOn"></div>
+<section>
+    <h2>🟢 EN POSTE ACTUELLEMENT</h2>
+    <div class="grid-staff" id="staffOn"></div>
+</section>
 
-<h2>⚪ EN CONGÉ / REPOS</h2>
-<div class="grid-staff" id="staffOff"></div>
+<section>
+    <h2 class="h-next">⏳ PROCHAINS TOURNUS (À VENIR)</h2>
+    <div class="grid-staff" id="staffNext"></div>
+</section>
+
+<section>
+    <h2 style="color:#94a3b8; border-color:#475569;">⚪ EN REPOS / CONGÉS</h2>
+    <div class="grid-staff" id="staffOff"></div>
+</section>
 
 <script>
     const firebaseConfig = { apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU", authDomain: "censeco-2026.firebaseapp.com", databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app", projectId: "censeco-2026", storageBucket: "censeco-2026.firebasestorage.app", messagingSenderId: "1030152312862", appId: "1:1030152312862:web:9618132ec2bcfc7831b60f" };
     firebase.initializeApp(firebaseConfig);
     
-    // On pointe sur la branche du planning (vérifie bien que c'est celle-là dans ton master)
+    // On écoute toute la base du planning
     const dbRef = firebase.database().ref('planning_data'); 
 
     dbRef.on('value', snap => {
         const data = snap.val();
-        // Dans ton master planning, les données sont souvent stockées sous forme d'objet ou de liste 'tasks'
-        const tasks = data && data.tasks ? Object.values(data.tasks) : [];
-        renderView(tasks);
+        // On récupère les tâches (tasks) peu importe leur ID
+        let rawTasks = [];
+        if (data && data.tasks) {
+            rawTasks = Object.values(data.tasks);
+        }
+        renderView(rawTasks);
     });
 
     function renderView(tasks) {
         const onCont = document.getElementById('staffOn');
+        const nextCont = document.getElementById('staffNext');
         const offCont = document.getElementById('staffOff');
+        
         const now = new Date();
-        const currentHour = now.getHours() + (now.getMinutes() / 60);
+        const curH = now.getHours();
+        const curM = now.getMinutes();
+        const nowVal = curH + (curM / 60);
 
-        // On sépare ceux qui sont en poste (Heure actuelle comprise dans leur créneau)
-        // et ceux qui sont en "CONGÉ"
-        const onList = tasks.filter(t => t.rowId !== 'CONGÉS');
-        const offList = tasks.filter(t => t.rowId === 'CONGÉS');
+        // Listes de tri
+        let listOn = [];
+        let listNext = [];
+        let listOff = [];
 
-        const createCard = (t, isActive) => `
-            <div class="staff-card ${isActive ? 'active' : ''}">
+        tasks.forEach(t => {
+            if (!t.start || !t.end || !t.personName) return;
+
+            // Conversion "08:00" -> 8.0
+            const sVal = parseFloat(t.start.split(':')[0]) + (parseFloat(t.start.split(':')[1]) / 60);
+            const eVal = parseFloat(t.end.split(':')[0]) + (parseFloat(t.end.split(':')[1]) / 60);
+
+            const cardData = {
+                name: t.personName.toUpperCase(),
+                role: (t.rowId || 'MEMBRE').replace(/_/g, ' '),
+                time: `${t.start} - ${t.end}`,
+                isVacation: t.rowId === 'CONGÉS' || t.rowId === 'CONGÉ'
+            };
+
+            if (cardData.isVacation) {
+                listOff.push(cardData);
+            } else if (nowVal >= sVal && nowVal < eVal) {
+                listOn.push(cardData);
+            } else if (sVal > nowVal && sVal < nowVal + 4) { 
+                // Affiche les tournus qui commencent dans les 4 prochaines heures
+                listNext.push(cardData);
+            }
+        });
+
+        const createCard = (d, type) => `
+            <div class="staff-card ${type}">
                 <div class="status-dot"></div>
-                <span class="role">${t.rowId.replace(/_/g, ' ')}</span>
-                <span class="name">${t.personName.toUpperCase()}</span>
-                <span class="time-range">⏱️ ${t.start} - ${t.end}</span>
+                <span class="role">${d.role}</span>
+                <span class="name">${d.name}</span>
+                <span class="time-range">${d.time}</span>
             </div>
         `;
 
-        onCont.innerHTML = onList.length ? onList.map(t => createCard(t, true)).join('') : '<div class="empty-msg">Aucun effectif engagé pour le moment.</div>';
-        offCont.innerHTML = offList.length ? offList.map(t => createCard(t, false)).join('') : '<div class="empty-msg">Tout le personnel est sur le terrain.</div>';
+        onCont.innerHTML = listOn.length ? listOn.map(d => createCard(d, 'active')).join('') : '<div class="empty-msg">Aucun personnel détecté en poste.</div>';
+        nextCont.innerHTML = listNext.length ? listNext.map(d => createCard(d, 'upcoming')).join('') : '<div class="empty-msg">Pas de relève prévue dans l\'immédiat.</div>';
+        offCont.innerHTML = listOff.length ? listOff.map(d => createCard(d, 'off')).join('') : '<div class="empty-msg">-</div>';
     }
 
     function updateClock() {
         const n = new Date();
         document.getElementById('clock').innerText = n.toLocaleTimeString('fr-FR');
-        document.getElementById('fullDate').innerText = `Nous sommes le ${n.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})}`;
+        document.getElementById('fullDate').innerText = `Nous sommes le ${n.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}`;
     }
 
     setInterval(updateClock, 1000);
