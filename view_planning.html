@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENSECO 2026 - PLANNING FINAL</title>
+    <title>CENSECO 2026 - PLANNING V5.3</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
@@ -11,13 +11,12 @@
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; box-sizing: border-box; }
         header { border-bottom: 3px solid var(--fids); padding-bottom: 15px; margin-bottom: 20px; text-align: center; }
         .clock { font-family: monospace; font-size: 2.5em; font-weight: 900; color: var(--fids); line-height: 1; }
-        .current-date { font-size: 1.1em; opacity: 0.8; margin-top: 8px; font-weight: 600; }
+        .current-date { font-size: 1.1em; opacity: 0.8; margin-top: 8px; font-weight: 600; text-align: right; width: 100%; }
         h2 { text-transform: uppercase; font-size: 0.9em; letter-spacing: 2px; color: var(--accent); border-left: 5px solid var(--accent); padding-left: 12px; margin: 30px 0 15px 0; }
         .grid-staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
         .staff-card { background: #1e293b; border-radius: 12px; padding: 12px; border: 1px solid rgba(255,255,255,0.1); position: relative; }
         .status-dot { position: absolute; top: 10px; right: 10px; width: 8px; height: 8px; border-radius: 50%; background: var(--off); }
         .active .status-dot { background: var(--on); box-shadow: 0 0 8px var(--on); }
-        .upcoming .status-dot { background: var(--next); box-shadow: 0 0 8px var(--next); }
         .role { font-size: 0.65em; font-weight: 900; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 3px; }
         .name { font-size: 1.1em; font-weight: 900; color: white; }
         .time-range { font-size: 0.85em; font-weight: 800; color: var(--fids); margin-top: 8px; display: block; }
@@ -31,96 +30,67 @@
 </header>
 
 <section>
-    <h2>🟢 EN POSTE ACTUELLEMENT</h2>
+    <h2>🟢 EFFECTIFS DÉTECTÉS</h2>
     <div class="grid-staff" id="staffOn"></div>
-</section>
-
-<section>
-    <h2 style="color:var(--next); border-color:var(--next);">⏳ PROCHAINS TOURNUS</h2>
-    <div class="grid-staff" id="staffNext"></div>
-</section>
-
-<section>
-    <h2 style="color:#94a3b8; border-color:#475569;">⚪ REPOS / CONGÉS</h2>
-    <div class="grid-staff" id="staffOff"></div>
 </section>
 
 <script>
     const firebaseConfig = { apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU", authDomain: "censeco-2026.firebaseapp.com", databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app", projectId: "censeco-2026", storageBucket: "censeco-2026.firebasestorage.app", messagingSenderId: "1030152312862", appId: "1:1030152312862:web:9618132ec2bcfc7831b60f" };
     firebase.initializeApp(firebaseConfig);
     
-    // On cible la branche détectée
+    // On écoute la branche identifiée
     const dbRef = firebase.database().ref('planning_pdg'); 
 
     dbRef.on('value', snap => {
         const root = snap.val();
         if (!root) return;
 
-        let allTasks = [];
+        let found = [];
 
-        // Exploration profonde pour trouver les blocs de planning
-        function explore(obj) {
+        // Fonction "pince-monseigneur" : elle attrape TOUT ce qui ressemble à un membre
+        function deepScan(obj) {
             if (!obj || typeof obj !== 'object') return;
             
-            // Si l'objet contient les données d'une barre de couleur (Gantt)
-            if ((obj.text || obj.personName) && (obj.start_date)) {
-                allTasks.push(obj);
+            // On cherche le nom dans toutes les variantes possibles
+            const name = obj.text || obj.personName || obj.label || obj.name || obj.content;
+            const start = obj.start_date || obj.start;
+
+            if (name && start) {
+                found.push({
+                    name: String(name).toUpperCase(),
+                    role: (obj.rowId || 'STAFF').replace(/_/g, ' '),
+                    start: String(start).split(' ')[1] || String(start)
+                });
             } else {
-                Object.values(obj).forEach(child => explore(child));
+                Object.values(obj).forEach(v => deepScan(v));
             }
         }
 
-        explore(root);
-        renderView(allTasks);
+        deepScan(root);
+        render(found);
     });
 
-    function renderView(tasks) {
-        const onCont = document.getElementById('staffOn');
-        const nextCont = document.getElementById('staffNext');
-        const offCont = document.getElementById('staffOff');
-        
-        const now = new Date();
-        const nowH = now.getHours() + (now.getMinutes() / 60);
+    function render(list) {
+        const container = document.getElementById('staffOn');
+        if (list.length === 0) {
+            container.innerHTML = '<div style="opacity:0.3; font-size:0.8em;">Aucune donnée brute trouvée dans planning_pdg</div>';
+            return;
+        }
 
-        let htmlOn = ""; let htmlNext = ""; let htmlOff = "";
-
-        tasks.forEach(t => {
-            const name = (t.text || t.personName || "").toUpperCase();
-            if (!name) return;
-
-            // Heures
-            const startStr = t.start_date.split(' ')[1] || t.start_date;
-            const endStr = t.end_date ? (t.end_date.split(' ')[1] || t.end_date) : "";
-            
-            const sH = parseFloat(startStr.split(':')[0]) + (parseFloat(startStr.split(':')[1])/60);
-            const eH = endStr ? parseFloat(endStr.split(':')[0]) + (parseFloat(endStr.split(':')[1])/60) : sH + 4;
-
-            const card = `
-                <div class="staff-card">
-                    <div class="status-dot"></div>
-                    <span class="role">${(t.rowId || 'STAFF').replace(/_/g, ' ')}</span>
-                    <span class="name">${name}</span>
-                    <span class="time-range">⏱️ ${startStr} ${endStr ? '- ' + endStr : ''}</span>
-                </div>`;
-
-            if (t.rowId === 'CONGÉS' || t.rowId === 'CONGÉ') {
-                htmlOff += card.replace('staff-card', 'staff-card off');
-            } else if (nowH >= sH && nowH < eH) {
-                htmlOn += card.replace('staff-card', 'staff-card active');
-            } else if (sH > nowH && sH < nowH + 6) {
-                htmlNext += card.replace('staff-card', 'staff-card upcoming');
-            }
-        });
-
-        onCont.innerHTML = htmlOn || '<div style="opacity:0.3; font-size:0.8em;">Aucun membre en poste</div>';
-        nextCont.innerHTML = htmlNext || '<div style="opacity:0.3; font-size:0.8em;">Aucune relève proche</div>';
-        offCont.innerHTML = htmlOff || '<div style="opacity:0.3; font-size:0.8em;">-</div>';
+        container.innerHTML = list.map(d => `
+            <div class="staff-card active">
+                <div class="status-dot"></div>
+                <span class="role">${d.role}</span>
+                <span class="name">${d.name}</span>
+                <span class="time-range">⏱️ Début : ${d.start}</span>
+            </div>
+        `).join('');
     }
 
     setInterval(() => {
         const n = new Date();
         document.getElementById('clock').innerText = n.toLocaleTimeString('fr-FR');
-        document.getElementById('fullDate').innerText = `Nous sommes le ${n.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}`;
+        document.getElementById('fullDate').innerText = `Nous sommes le ${n.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'})} `;
     }, 1000);
 </script>
 </body>
