@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENSECO - MONITOR LIVE V6.2</title>
+    <title>CENSECO - MONITOR LIVE V6.3</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
@@ -72,11 +72,8 @@
         const tomorrow = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
         const nowI = (now.getHours() * 2) + (now.getMinutes() >= 30 ? 1 : 0);
 
-        // 1. On récupère d'abord les fonctions
         db.ref('planning_pdg/config/fcts').once('value', snapF => {
             dynamicFcts = snapF.val() || [];
-
-            // 2. Puis on charge aujourd'hui et demain
             let allShifts = [];
             Promise.all([
                 db.ref('planning_pdg/' + today).once('value'),
@@ -95,15 +92,13 @@
 
     function render(shifts, nowI, today) {
         let htmlOn = "", htmlNext = "", htmlOff = "";
-        
-        // Tri chronologique global (aujourd'hui puis demain)
         shifts.sort((a,b) => (a.day === b.day) ? (a.sI - b.sI) : (a.day > b.day ? 1 : -1));
 
         shifts.forEach(s => {
             const isToday = (s.day === today);
             const roleName = (s.pVal === "cng") ? "🏖️ CONGÉ" : (dynamicFcts[s.pVal] || "FONCTION " + s.pVal);
-            const dateObj = new Date(s.day);
-            const dateFmt = dateObj.toLocaleDateString('fr-FR', {day:'numeric', month:'short'}).toUpperCase();
+            const dateFmt = new Date(s.day).toLocaleDateString('fr-FR', {day:'numeric', month:'short'}).toUpperCase();
+            const endI = s.sI + s.dur;
             
             const card = `
                 <div class="staff-card {CL}">
@@ -111,15 +106,17 @@
                     <span class="role">${roleName}</span>
                     <span class="name">${s.n.toUpperCase()}</span>
                     <span class="date-tag">🗓️ ${dateFmt}</span>
-                    <span class="time">🕒 ${iToT(s.sI)} - ${iToT(s.sI + s.dur)}</span>
+                    <span class="time">🕒 ${iToT(s.sI)} - ${iToT(endI)}</span>
                 </div>`;
 
             if (s.pVal === "cng") {
-                htmlOff += card.replace('{CL}', 'off');
-            } else if (isToday && nowI >= s.sI && nowI < (s.sI + s.dur)) {
+                // Filtre : on n'affiche que si le congé n'est pas terminé aujourd'hui, OU s'il est pour demain
+                if (!isToday || (isToday && nowI < endI)) {
+                    htmlOff += card.replace('{CL}', 'off');
+                }
+            } else if (isToday && nowI >= s.sI && nowI < endI) {
                 htmlOn += card.replace('{CL}', 'active');
             } else {
-                // Règle 24h : s'affiche si c'est dans le futur sur un cycle de 48 demi-heures
                 const absoluteStart = (isToday ? s.sI : s.sI + 48);
                 if (absoluteStart > nowI && absoluteStart <= (nowI + 48)) {
                     htmlNext += card.replace('{CL}', 'upcoming');
@@ -132,11 +129,8 @@
         document.getElementById('staffOff').innerHTML = htmlOff || '<div class="empty-msg">-</div>';
     }
 
-    // Rafraîchissement régulier
     setInterval(update, 15000);
     update();
-
-    // Horloge temps réel
     setInterval(() => {
         const n = new Date();
         document.getElementById('clock').innerText = n.toLocaleTimeString('fr-FR');
