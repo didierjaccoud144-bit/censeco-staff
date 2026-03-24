@@ -3,110 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENSECO 2026 - EFFECTIFS LIVE</title>
+    <title>CENSECO - VIEW PRO 24H</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
         :root { --bg: #020617; --fids: #ffcc00; --accent: #38bdf8; --on: #22c55e; --off: #64748b; --next: #a855f7; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; box-sizing: border-box; }
-        header { border-bottom: 3px solid var(--fids); padding-bottom: 15px; margin-bottom: 10px; text-align: center; }
-        .clock { font-family: monospace; font-size: 2.8em; font-weight: 900; color: var(--fids); line-height: 1; }
-        .current-date { font-size: 1em; opacity: 0.8; margin-top: 10px; font-weight: 600; text-align: center; }
-        
-        section { margin-bottom: 30px; }
-        h2 { text-transform: uppercase; font-size: 0.9em; letter-spacing: 2px; color: var(--accent); border-left: 5px solid var(--accent); padding-left: 12px; margin: 20px 0 15px 0; }
-        
-        .grid-staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
-        .staff-card { background: #1e293b; border-radius: 12px; padding: 15px; border: 1px solid rgba(255,255,255,0.1); position: relative; }
-        .status-dot { position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; border-radius: 50%; background: var(--off); }
-        .active .status-dot { background: var(--on); box-shadow: 0 0 10px var(--on); }
-        .upcoming .status-dot { background: var(--next); box-shadow: 0 0 10px var(--next); }
-
-        .role { font-size: 0.65em; font-weight: 900; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 4px; }
-        .name { font-size: 1.1em; font-weight: 900; color: white; line-height: 1.2; }
-        .time { font-size: 0.8em; font-weight: 800; color: var(--fids); margin-top: 10px; display: block; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 4px; text-align: center; }
-        .empty-msg { opacity: 0.3; font-style: italic; font-size: 0.8em; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; }
+        header { border-bottom: 3px solid var(--fids); padding-bottom: 10px; margin-bottom: 15px; text-align: center; }
+        .clock { font-family: monospace; font-size: 2.5em; font-weight: 900; color: var(--fids); }
+        h2 { text-transform: uppercase; font-size: 0.8em; letter-spacing: 2px; color: var(--accent); border-left: 4px solid var(--accent); padding-left: 10px; margin: 25px 0 15px 0; }
+        .grid-staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+        .staff-card { background: #1e293b; border-radius: 10px; padding: 12px; border: 1px solid rgba(255,255,255,0.1); position: relative; }
+        .status-dot { position: absolute; top: 10px; right: 10px; width: 8px; height: 8px; border-radius: 50%; background: var(--off); }
+        .active .status-dot { background: var(--on); box-shadow: 0 0 8px var(--on); }
+        .upcoming .status-dot { background: var(--next); box-shadow: 0 0 8px var(--next); }
+        .role { font-size: 0.6em; font-weight: 900; color: var(--accent); display: block; }
+        .name { font-size: 1em; font-weight: 900; color: white; }
+        .date-tag { font-size: 0.6em; opacity: 0.6; display: block; margin-top: 4px; }
+        .time { font-size: 0.75em; font-weight: 800; color: var(--fids); margin-top: 8px; display: block; text-align: center; background: rgba(0,0,0,0.2); border-radius: 4px; padding: 2px; }
     </style>
 </head>
 <body>
 
 <header>
     <div class="clock" id="clock">00:00:00</div>
-    <div id="fullDate" class="current-date">Chargement...</div>
+    <div id="fullDate" style="font-size:0.9em; opacity:0.7"></div>
 </header>
 
-<section>
-    <h2>🟢 EN POSTE ACTUELLEMENT</h2>
-    <div class="grid-staff" id="staffOn"></div>
-</section>
-
-<section>
-    <h2 style="color:var(--next); border-color:var(--next);">⏳ PROCHAINS TOURNUS (8H)</h2>
-    <div class="grid-staff" id="staffNext"></div>
-</section>
-
-<section>
-    <h2>⚪ REPOS / CONGÉS</h2>
-    <div class="grid-staff" id="staffOff"></div>
-</section>
+<section><h2>🟢 EN POSTE</h2><div class="grid-staff" id="staffOn"></div></section>
+<section><h2>⏳ PROCHAINS TOURNUS (H+24)</h2><div class="grid-staff" id="staffNext"></div></section>
+<section><h2>⚪ REPOS / CONGÉS</h2><div class="grid-staff" id="staffOff"></div></section>
 
 <script>
     const firebaseConfig = { apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU", authDomain: "censeco-2026.firebaseapp.com", databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app", projectId: "censeco-2026", storageBucket: "censeco-2026.firebasestorage.app", messagingSenderId: "1030152312862", appId: "1:1030152312862:web:9618132ec2bcfc7831b60f" };
     firebase.initializeApp(firebaseConfig);
-    
+    const db = firebase.database();
     const fcts = ["M C PDG", "C CenSeco", "Adj C CenSeco", "Rég 1", "Rég 2", "Rég piquet", "AIC C CenSeco", "AIC Rég 1", "AIC Rég 2", "Teneur d'affiche", "Rég Héli"];
-    const planRef = firebase.database().ref('planning_pdg');
 
-    planRef.on('value', snap => {
-        const data = snap.val();
-        if(!data || !data.shifts) return;
-        render(data.shifts);
-    });
+    function iToT(i) { return `${Math.floor(i/2).toString().padStart(2,'0')}:${(i%2===0)?"00":"30"}`; }
 
-    function iToT(i) {
-        let h = Math.floor(i/2).toString().padStart(2,'0');
-        let m = (i%2===0)?"00":"30";
-        return `${h}:${m}`;
-    }
-
-    function render(shifts) {
+    function update() {
         const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        const tomorrow = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
         const nowI = (now.getHours() * 2) + (now.getMinutes() >= 30 ? 1 : 0);
 
-        let htmlOn = "", htmlNext = "", htmlOff = "";
+        let allShifts = [];
 
+        // On charge aujourd'hui ET demain
+        Promise.all([
+            db.ref('planning_pdg/' + today).once('value'),
+            db.ref('planning_pdg/' + tomorrow).once('value')
+        ]).then(snaps => {
+            snaps.forEach((snap, idx) => {
+                const dayDate = idx === 0 ? today : tomorrow;
+                if(snap.val() && snap.val().shifts) {
+                    snap.val().shifts.forEach(s => allShifts.push({...s, day: dayDate}));
+                }
+            });
+            render(allShifts, nowI, today);
+        });
+    }
+
+    function render(shifts, nowI, today) {
+        let hOn = "", hNext = "", hOff = "";
+        
         shifts.forEach(s => {
-            const name = s.n.toUpperCase();
-            const startT = iToT(s.sI);
-            const endT = iToT(s.sI + s.dur);
+            const isToday = s.day === today;
             const role = s.pVal === "cng" ? "CONGÉ" : fcts[s.pVal];
-
-            const card = `
-                <div class="staff-card {CL}">
-                    <div class="status-dot"></div>
-                    <span class="role">${role}</span>
-                    <span class="name">${name}</span>
-                    <span class="time">🕒 ${startT} - ${endT}</span>
-                </div>`;
+            const dateFmt = new Date(s.day).toLocaleDateString('fr-FR', {day:'numeric', month:'short'});
+            
+            const card = `<div class="staff-card {CL}">
+                <div class="status-dot"></div>
+                <span class="role">${role}</span>
+                <span class="name">${s.n.toUpperCase()}</span>
+                <span class="date-tag">📅 ${dateFmt}</span>
+                <span class="time">🕒 ${iToT(s.sI)} - ${iToT(s.sI + s.dur)}</span>
+            </div>`;
 
             if (s.pVal === "cng") {
-                htmlOff += card.replace('{CL}', 'off');
-            } else if (nowI >= s.sI && nowI < (s.sI + s.dur)) {
-                htmlOn += card.replace('{CL}', 'active');
-            } else if (s.sI > nowI && s.sI < nowI + 16) { // MODIFICATION ICI : +16 créneaux = 8 heures
-                htmlNext += card.replace('{CL}', 'upcoming');
+                hOff += card.replace('{CL}', 'off');
+            } else if (isToday && nowI >= s.sI && nowI < (s.sI + s.dur)) {
+                hOn += card.replace('{CL}', 'active');
+            } else {
+                // Règle H+24 : On affiche tout ce qui est dans le futur sur 24h
+                const absoluteStart = (isToday ? s.sI : s.sI + 48);
+                if (absoluteStart > nowI && absoluteStart <= (nowI + 48)) {
+                    hNext += card.replace('{CL}', 'upcoming');
+                }
             }
         });
 
-        document.getElementById('staffOn').innerHTML = htmlOn || '<div class="empty-msg">Aucun effectif en poste</div>';
-        document.getElementById('staffNext').innerHTML = htmlNext || '<div class="empty-msg">Aucune relève proche</div>';
-        document.getElementById('staffOff').innerHTML = htmlOff || '<div class="empty-msg">-</div>';
+        document.getElementById('staffOn').innerHTML = hOn || '<div style="opacity:0.2">Vide</div>';
+        document.getElementById('staffNext').innerHTML = hNext || '<div style="opacity:0.2">Rien dans les 24h</div>';
+        document.getElementById('staffOff').innerHTML = hOff || '<div style="opacity:0.2">-</div>';
     }
 
+    setInterval(update, 10000);
+    update();
     setInterval(() => {
         const n = new Date();
         document.getElementById('clock').innerText = n.toLocaleTimeString('fr-FR');
-        document.getElementById('fullDate').innerText = `Nous sommes le ${n.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}`;
+        document.getElementById('fullDate').innerText = n.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
     }, 1000);
 </script>
 </body>
