@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENSECO 2026 - PLANNING MONITOR</title>
+    <title>CENSECO 2026 - EFFECTIFS</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
@@ -32,12 +32,12 @@
 </header>
 
 <section>
-    <h2>🟢 EN POSTE (AUJOURD'HUI)</h2>
+    <h2>🟢 EN POSTE</h2>
     <div class="grid-staff" id="staffOn"></div>
 </section>
 
 <section>
-    <h2 style="color:var(--next); border-color:var(--next);">⏳ PROCHAINS TOURNUS (À VENIR)</h2>
+    <h2 style="color:var(--next); border-color:var(--next);">⏳ PROCHAINS TOURNUS</h2>
     <div class="grid-staff" id="staffNext"></div>
 </section>
 
@@ -50,14 +50,26 @@
     const firebaseConfig = { apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU", authDomain: "censeco-2026.firebaseapp.com", databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app", projectId: "censeco-2026", storageBucket: "censeco-2026.firebasestorage.app", messagingSenderId: "1030152312862", appId: "1:1030152312862:web:9618132ec2bcfc7831b60f" };
     firebase.initializeApp(firebaseConfig);
     
-    // CORRECTION : On cible la branche "planning_pdg" identifiée via le diagnostic
+    // ON SCANNE TOUT CE QUI EST DANS PLANNING_PDG
     const dbRef = firebase.database().ref('planning_pdg'); 
 
     dbRef.on('value', snap => {
         const root = snap.val();
-        // Dans un moteur Gantt, les données sont souvent dans .tasks
-        let tasks = root && root.tasks ? Object.values(root.tasks) : [];
-        renderView(tasks);
+        if (!root) return;
+
+        // On récupère TOUTES les valeurs de l'objet, même si elles sont imbriquées
+        let allItems = [];
+        function flatten(obj) {
+            if (obj && typeof obj === 'object') {
+                if ((obj.text || obj.personName) && obj.start_date) {
+                    allItems.push(obj);
+                } else {
+                    Object.values(obj).forEach(v => flatten(v));
+                }
+            }
+        }
+        flatten(root);
+        renderView(allItems);
     });
 
     function renderView(tasks) {
@@ -66,46 +78,37 @@
         const offCont = document.getElementById('staffOff');
         
         const now = new Date();
-        const todayStr = now.toISOString().split('T')[0]; // "YYYY-MM-DD"
         const nowVal = now.getHours() + (now.getMinutes() / 60);
 
         let listOn = []; let listNext = []; let listOff = [];
 
         tasks.forEach(t => {
-            const pName = t.personName || t.text;
-            if (!pName || !t.start_date) return;
+            const name = t.text || t.personName;
+            const startStr = t.start_date || "";
+            if (!name || !startStr) return;
 
-            // t.start_date est au format "YYYY-MM-DD HH:mm"
-            const datePart = t.start_date.split(' ')[0];
-            const timeStart = t.start_date.split(' ')[1];
-            const timeEnd = t.end_date ? t.end_date.split(' ')[1] : "";
-
-            // Calcul numérique des heures
+            const timeStart = startStr.includes(' ') ? startStr.split(' ')[1] : startStr;
             const sH = parseFloat(timeStart.split(':')[0]) + (parseFloat(timeStart.split(':')[1])/60);
-            const eH = timeEnd ? parseFloat(timeEnd.split(':')[0]) + (parseFloat(timeEnd.split(':')[1])/60) : sH + 8;
 
             const card = {
-                name: pName.toUpperCase(),
+                name: name.toUpperCase(),
                 role: (t.rowId || 'STAFF').replace(/_/g, ' '),
-                time: `${timeStart} - ${timeEnd || '??'}`
+                time: timeStart
             };
 
-            // FILTRE DATE : Uniquement aujourd'hui
-            if (datePart === todayStr) {
-                if (t.rowId === 'CONGÉS' || t.rowId === 'CONGÉ') {
-                    listOff.push(card);
-                } else if (nowVal >= sH && nowVal < eH) {
-                    listOn.push(card);
-                } else if (sH > nowVal && sH < nowVal + 6) { // On voit les 6 prochaines heures
-                    listNext.push(card);
-                }
+            if (t.rowId === 'CONGÉS' || t.rowId === 'CONGÉ') {
+                listOff.push(card);
+            } else if (nowVal >= sH && nowVal < sH + 8) { // On assume une garde de 8h si pas de fin
+                listOn.push(card);
+            } else {
+                listNext.push(card);
             }
         });
 
-        const html = (d, cl) => `<div class="staff-card ${cl}"><div class="status-dot"></div><span class="role">${d.role}</span><span class="name">${d.name}</span><span class="time-range">${d.time}</span></div>`;
+        const html = (d, cl) => `<div class="staff-card ${cl}"><div class="status-dot"></div><span class="role">${d.role}</span><span class="name">${d.name}</span><span class="time-range">🕒 Début: ${d.time}</span></div>`;
 
-        onCont.innerHTML = listOn.length ? listOn.map(d => html(d, 'active')).join('') : '<div class="empty-msg">Aucun effectif en poste.</div>';
-        nextCont.innerHTML = listNext.length ? listNext.map(d => html(d, 'upcoming')).join('') : '<div class="empty-msg">Pas de relève proche.</div>';
+        onCont.innerHTML = listOn.length ? listOn.map(d => html(d, 'active')).join('') : '<div class="empty-msg">-</div>';
+        nextCont.innerHTML = listNext.length ? listNext.map(d => html(d, 'upcoming')).join('') : '<div class="empty-msg">-</div>';
         offCont.innerHTML = listOff.length ? listOff.map(d => html(d, 'off')).join('') : '<div class="empty-msg">-</div>';
     }
 
