@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENSECO 2026 - PLANNING MONITOR V4.1</title>
+    <title>CENSECO 2026 - EFFECTIFS V4.2</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
@@ -32,7 +32,7 @@
 </header>
 
 <section>
-    <h2>🟢 EN POSTE (AUJOURD'HUI)</h2>
+    <h2>🟢 EN POSTE ACTUELLEMENT</h2>
     <div class="grid-staff" id="staffOn"></div>
 </section>
 
@@ -50,21 +50,26 @@
     const firebaseConfig = { apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU", authDomain: "censeco-2026.firebaseapp.com", databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app", projectId: "censeco-2026", storageBucket: "censeco-2026.firebasestorage.app", messagingSenderId: "1030152312862", appId: "1:1030152312862:web:9618132ec2bcfc7831b60f" };
     firebase.initializeApp(firebaseConfig);
     
-    // On pointe sur la racine pour être sûr de tout voir
+    // SCANNER TOTAL : On écoute la racine du Firebase
     const dbRef = firebase.database().ref(); 
 
     dbRef.on('value', snap => {
         const root = snap.val();
-        let tasks = [];
+        let allTasks = [];
 
-        // Extraction robuste des tâches (on cherche partout où il y a des "tasks")
-        if (root.planning_data && root.planning_data.tasks) {
-            tasks = Object.values(root.planning_data.tasks);
-        } else if (root.tasks) {
-            tasks = Object.values(root.tasks);
+        // Fonction récursive pour trouver tous les objets qui ressemblent à une tâche de planning
+        function findTasks(obj) {
+            if (!obj || typeof obj !== 'object') return;
+            // Si l'objet a un nom (text ou personName) ET une date de début, c'est une tâche
+            if ((obj.text || obj.personName) && (obj.start_date || obj.start)) {
+                allTasks.push(obj);
+            } else {
+                Object.values(obj).forEach(val => findTasks(val));
+            }
         }
-
-        renderView(tasks);
+        
+        findTasks(root);
+        renderView(allTasks);
     });
 
     function renderView(tasks) {
@@ -73,35 +78,39 @@
         const offCont = document.getElementById('staffOff');
         
         const now = new Date();
-        const todayStr = now.toISOString().split('T')[0]; // Format "2026-03-24"
+        const todayStr = now.toISOString().split('T')[0];
         const nowVal = now.getHours() + (now.getMinutes() / 60);
 
         let listOn = []; let listNext = []; let listOff = [];
 
         tasks.forEach(t => {
-            // On vérifie les champs : personName ou text (selon ta version)
+            // Mapping flexible des champs
             const pName = t.personName || t.text;
-            if (!pName || !t.start_date) return;
-
-            // Gestion de la date de la tâche
-            const tDate = t.start_date.split(' ')[0]; // Récupère la partie date "YYYY-MM-DD"
+            const fullStart = t.start_date || t.start || "";
+            const fullEnd = t.end_date || t.end || "";
             
-            // On ne traite que les tâches d'AUJOURD'HUI
+            if (!pName || !fullStart) return;
+
+            // Séparer Date et Heure
+            const partsS = fullStart.includes(' ') ? fullStart.split(' ') : [todayStr, fullStart];
+            const tDate = partsS[0];
+            const startTime = partsS[1];
+            
+            const partsE = fullEnd.includes(' ') ? fullEnd.split(' ') : [todayStr, fullEnd];
+            const endTime = partsE[1] || "";
+
+            // On filtre pour aujourd'hui
             if (tDate === todayStr) {
-                // Heures de début/fin (souvent en format "YYYY-MM-DD HH:mm")
-                const startTime = t.start_date.split(' ')[1];
-                const endTime = t.end_date ? t.end_date.split(' ')[1] : "";
-                
                 const sH = parseFloat(startTime.split(':')[0]) + (parseFloat(startTime.split(':')[1])/60);
-                const eH = endTime ? parseFloat(endTime.split(':')[0]) + (parseFloat(endTime.split(':')[1])/60) : sH + 8;
+                const eH = endTime ? parseFloat(endTime.split(':')[0]) + (parseFloat(endTime.split(':')[1])/60) : sH + 4;
 
                 const card = {
                     name: pName.toUpperCase(),
                     role: (t.rowId || 'STAFF').replace(/_/g, ' '),
-                    time: `${startTime} - ${endTime || '?'}`
+                    time: `${startTime} - ${endTime}`
                 };
 
-                if (t.rowId === 'CONGÉS' || t.rowId === 'CONGÉ') {
+                if (t.rowId === 'CONGÉS' || t.rowId === 'CONGÉ' || t.rowId === 'CONGE') {
                     listOff.push(card);
                 } else if (nowVal >= sH && nowVal < eH) {
                     listOn.push(card);
@@ -113,7 +122,7 @@
 
         const html = (d, cl) => `<div class="staff-card ${cl}"><div class="status-dot"></div><span class="role">${d.role}</span><span class="name">${d.name}</span><span class="time-range">${d.time}</span></div>`;
 
-        onCont.innerHTML = listOn.length ? listOn.map(d => html(d, 'active')).join('') : '<div class="empty-msg">Personne en poste.</div>';
+        onCont.innerHTML = listOn.length ? listOn.map(d => html(d, 'active')).join('') : '<div class="empty-msg">Aucun personnel en poste.</div>';
         nextCont.innerHTML = listNext.length ? listNext.map(d => html(d, 'upcoming')).join('') : '<div class="empty-msg">Aucun tournus proche.</div>';
         offCont.innerHTML = listOff.length ? listOff.map(d => html(d, 'off')).join('') : '<div class="empty-msg">-</div>';
     }
