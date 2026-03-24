@@ -3,23 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENSECO 2026 - PLANNING V5.3</title>
+    <title>CENSECO 2026 - MONITOR FINAL</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
-        :root { --bg: #020617; --fids: #ffcc00; --accent: #38bdf8; --on: #22c55e; --off: #64748b; --next: #a855f7; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; box-sizing: border-box; }
+        :root { --bg: #020617; --fids: #ffcc00; --accent: #38bdf8; --on: #22c55e; --off: #64748b; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; }
         header { border-bottom: 3px solid var(--fids); padding-bottom: 15px; margin-bottom: 20px; text-align: center; }
-        .clock { font-family: monospace; font-size: 2.5em; font-weight: 900; color: var(--fids); line-height: 1; }
-        .current-date { font-size: 1.1em; opacity: 0.8; margin-top: 8px; font-weight: 600; text-align: right; width: 100%; }
+        .clock { font-family: monospace; font-size: 2.8em; font-weight: 900; color: var(--fids); line-height: 1; }
+        .current-date { font-size: 1.1em; opacity: 0.8; margin-top: 10px; font-weight: 600; }
         h2 { text-transform: uppercase; font-size: 0.9em; letter-spacing: 2px; color: var(--accent); border-left: 5px solid var(--accent); padding-left: 12px; margin: 30px 0 15px 0; }
         .grid-staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
-        .staff-card { background: #1e293b; border-radius: 12px; padding: 12px; border: 1px solid rgba(255,255,255,0.1); position: relative; }
-        .status-dot { position: absolute; top: 10px; right: 10px; width: 8px; height: 8px; border-radius: 50%; background: var(--off); }
-        .active .status-dot { background: var(--on); box-shadow: 0 0 8px var(--on); }
-        .role { font-size: 0.65em; font-weight: 900; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 3px; }
-        .name { font-size: 1.1em; font-weight: 900; color: white; }
-        .time-range { font-size: 0.85em; font-weight: 800; color: var(--fids); margin-top: 8px; display: block; }
+        .staff-card { background: #1e293b; border-radius: 12px; padding: 15px; border: 1px solid rgba(255,255,255,0.1); position: relative; }
+        .status-dot { position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; border-radius: 50%; background: var(--on); box-shadow: 0 0 10px var(--on); }
+        .role { font-size: 0.7em; font-weight: 900; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 5px; }
+        .name { font-size: 1.2em; font-weight: 900; color: white; display: block; }
+        .time { font-size: 0.85em; font-weight: 800; color: var(--fids); margin-top: 10px; display: block; }
     </style>
 </head>
 <body>
@@ -30,59 +29,62 @@
 </header>
 
 <section>
-    <h2>🟢 EFFECTIFS DÉTECTÉS</h2>
-    <div class="grid-staff" id="staffOn"></div>
+    <h2>🟢 EFFECTIFS DÉTECTÉS (TOUT)</h2>
+    <div class="grid-staff" id="monitorBody"></div>
 </section>
 
 <script>
     const firebaseConfig = { apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU", authDomain: "censeco-2026.firebaseapp.com", databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app", projectId: "censeco-2026", storageBucket: "censeco-2026.firebasestorage.app", messagingSenderId: "1030152312862", appId: "1:1030152312862:web:9618132ec2bcfc7831b60f" };
     firebase.initializeApp(firebaseConfig);
     
-    // On écoute la branche identifiée
-    const dbRef = firebase.database().ref('planning_pdg'); 
+    const branches = ['planning_pdg', 'planning_staff'];
+    let allDataFound = [];
 
-    dbRef.on('value', snap => {
-        const root = snap.val();
-        if (!root) return;
+    branches.forEach(path => {
+        firebase.database().ref(path).on('value', snap => {
+            const val = snap.val();
+            if (val) {
+                console.log("Données reçues de :", path);
+                deepScan(val);
+                render();
+            }
+        });
+    });
 
-        let found = [];
+    function deepScan(obj) {
+        if (!obj || typeof obj !== 'object') return;
+        
+        // On cherche le contenu textuel de la barre (Kohlprath, etc.)
+        const name = obj.text || obj.personName || obj.label || obj.name || obj.content || obj.value;
+        const start = obj.start_date || obj.start;
 
-        // Fonction "pince-monseigneur" : elle attrape TOUT ce qui ressemble à un membre
-        function deepScan(obj) {
-            if (!obj || typeof obj !== 'object') return;
-            
-            // On cherche le nom dans toutes les variantes possibles
-            const name = obj.text || obj.personName || obj.label || obj.name || obj.content;
-            const start = obj.start_date || obj.start;
-
-            if (name && start) {
-                found.push({
-                    name: String(name).toUpperCase(),
+        if (name && start && typeof name === 'string' && name.length > 2) {
+            // Éviter les doublons
+            if (!allDataFound.find(item => item.name === name.toUpperCase() && item.start === start)) {
+                allDataFound.push({
+                    name: name.toUpperCase(),
                     role: (obj.rowId || 'STAFF').replace(/_/g, ' '),
                     start: String(start).split(' ')[1] || String(start)
                 });
-            } else {
-                Object.values(obj).forEach(v => deepScan(v));
             }
+        } else {
+            Object.values(obj).forEach(v => deepScan(v));
         }
+    }
 
-        deepScan(root);
-        render(found);
-    });
-
-    function render(list) {
-        const container = document.getElementById('staffOn');
-        if (list.length === 0) {
-            container.innerHTML = '<div style="opacity:0.3; font-size:0.8em;">Aucune donnée brute trouvée dans planning_pdg</div>';
+    function render() {
+        const container = document.getElementById('monitorBody');
+        if (allDataFound.length === 0) {
+            container.innerHTML = '<div style="opacity:0.3;">En attente de données valides...</div>';
             return;
         }
 
-        container.innerHTML = list.map(d => `
-            <div class="staff-card active">
+        container.innerHTML = allDataFound.map(d => `
+            <div class="staff-card">
                 <div class="status-dot"></div>
                 <span class="role">${d.role}</span>
                 <span class="name">${d.name}</span>
-                <span class="time-range">⏱️ Début : ${d.start}</span>
+                <span class="time">🕒 Début : ${d.start}</span>
             </div>
         `).join('');
     }
@@ -90,7 +92,7 @@
     setInterval(() => {
         const n = new Date();
         document.getElementById('clock').innerText = n.toLocaleTimeString('fr-FR');
-        document.getElementById('fullDate').innerText = `Nous sommes le ${n.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'})} `;
+        document.getElementById('fullDate').innerText = `Nous sommes le ${n.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}`;
     }, 1000);
 </script>
 </body>
