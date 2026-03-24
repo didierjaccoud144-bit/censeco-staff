@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENSECO 2026 - EFFECTIFS</title>
+    <title>CENSECO 2026 - PLANNING FINAL</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
@@ -21,7 +21,6 @@
         .role { font-size: 0.65em; font-weight: 900; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 3px; }
         .name { font-size: 1.1em; font-weight: 900; color: white; }
         .time-range { font-size: 0.85em; font-weight: 800; color: var(--fids); margin-top: 8px; display: block; }
-        .empty-msg { opacity: 0.2; font-style: italic; font-size: 0.8em; padding: 10px; }
     </style>
 </head>
 <body>
@@ -32,7 +31,7 @@
 </header>
 
 <section>
-    <h2>🟢 EN POSTE</h2>
+    <h2>🟢 EN POSTE ACTUELLEMENT</h2>
     <div class="grid-staff" id="staffOn"></div>
 </section>
 
@@ -50,26 +49,29 @@
     const firebaseConfig = { apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU", authDomain: "censeco-2026.firebaseapp.com", databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app", projectId: "censeco-2026", storageBucket: "censeco-2026.firebasestorage.app", messagingSenderId: "1030152312862", appId: "1:1030152312862:web:9618132ec2bcfc7831b60f" };
     firebase.initializeApp(firebaseConfig);
     
-    // ON SCANNE TOUT CE QUI EST DANS PLANNING_PDG
+    // On cible la branche détectée
     const dbRef = firebase.database().ref('planning_pdg'); 
 
     dbRef.on('value', snap => {
         const root = snap.val();
         if (!root) return;
 
-        // On récupère TOUTES les valeurs de l'objet, même si elles sont imbriquées
-        let allItems = [];
-        function flatten(obj) {
-            if (obj && typeof obj === 'object') {
-                if ((obj.text || obj.personName) && obj.start_date) {
-                    allItems.push(obj);
-                } else {
-                    Object.values(obj).forEach(v => flatten(v));
-                }
+        let allTasks = [];
+
+        // Exploration profonde pour trouver les blocs de planning
+        function explore(obj) {
+            if (!obj || typeof obj !== 'object') return;
+            
+            // Si l'objet contient les données d'une barre de couleur (Gantt)
+            if ((obj.text || obj.personName) && (obj.start_date)) {
+                allTasks.push(obj);
+            } else {
+                Object.values(obj).forEach(child => explore(child));
             }
         }
-        flatten(root);
-        renderView(allItems);
+
+        explore(root);
+        renderView(allTasks);
     });
 
     function renderView(tasks) {
@@ -78,46 +80,48 @@
         const offCont = document.getElementById('staffOff');
         
         const now = new Date();
-        const nowVal = now.getHours() + (now.getMinutes() / 60);
+        const nowH = now.getHours() + (now.getMinutes() / 60);
 
-        let listOn = []; let listNext = []; let listOff = [];
+        let htmlOn = ""; let htmlNext = ""; let htmlOff = "";
 
         tasks.forEach(t => {
-            const name = t.text || t.personName;
-            const startStr = t.start_date || "";
-            if (!name || !startStr) return;
+            const name = (t.text || t.personName || "").toUpperCase();
+            if (!name) return;
 
-            const timeStart = startStr.includes(' ') ? startStr.split(' ')[1] : startStr;
-            const sH = parseFloat(timeStart.split(':')[0]) + (parseFloat(timeStart.split(':')[1])/60);
+            // Heures
+            const startStr = t.start_date.split(' ')[1] || t.start_date;
+            const endStr = t.end_date ? (t.end_date.split(' ')[1] || t.end_date) : "";
+            
+            const sH = parseFloat(startStr.split(':')[0]) + (parseFloat(startStr.split(':')[1])/60);
+            const eH = endStr ? parseFloat(endStr.split(':')[0]) + (parseFloat(endStr.split(':')[1])/60) : sH + 4;
 
-            const card = {
-                name: name.toUpperCase(),
-                role: (t.rowId || 'STAFF').replace(/_/g, ' '),
-                time: timeStart
-            };
+            const card = `
+                <div class="staff-card">
+                    <div class="status-dot"></div>
+                    <span class="role">${(t.rowId || 'STAFF').replace(/_/g, ' ')}</span>
+                    <span class="name">${name}</span>
+                    <span class="time-range">⏱️ ${startStr} ${endStr ? '- ' + endStr : ''}</span>
+                </div>`;
 
             if (t.rowId === 'CONGÉS' || t.rowId === 'CONGÉ') {
-                listOff.push(card);
-            } else if (nowVal >= sH && nowVal < sH + 8) { // On assume une garde de 8h si pas de fin
-                listOn.push(card);
-            } else {
-                listNext.push(card);
+                htmlOff += card.replace('staff-card', 'staff-card off');
+            } else if (nowH >= sH && nowH < eH) {
+                htmlOn += card.replace('staff-card', 'staff-card active');
+            } else if (sH > nowH && sH < nowH + 6) {
+                htmlNext += card.replace('staff-card', 'staff-card upcoming');
             }
         });
 
-        const html = (d, cl) => `<div class="staff-card ${cl}"><div class="status-dot"></div><span class="role">${d.role}</span><span class="name">${d.name}</span><span class="time-range">🕒 Début: ${d.time}</span></div>`;
-
-        onCont.innerHTML = listOn.length ? listOn.map(d => html(d, 'active')).join('') : '<div class="empty-msg">-</div>';
-        nextCont.innerHTML = listNext.length ? listNext.map(d => html(d, 'upcoming')).join('') : '<div class="empty-msg">-</div>';
-        offCont.innerHTML = listOff.length ? listOff.map(d => html(d, 'off')).join('') : '<div class="empty-msg">-</div>';
+        onCont.innerHTML = htmlOn || '<div style="opacity:0.3; font-size:0.8em;">Aucun membre en poste</div>';
+        nextCont.innerHTML = htmlNext || '<div style="opacity:0.3; font-size:0.8em;">Aucune relève proche</div>';
+        offCont.innerHTML = htmlOff || '<div style="opacity:0.3; font-size:0.8em;">-</div>';
     }
 
-    function updateClock() {
+    setInterval(() => {
         const n = new Date();
         document.getElementById('clock').innerText = n.toLocaleTimeString('fr-FR');
         document.getElementById('fullDate').innerText = `Nous sommes le ${n.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}`;
-    }
-    setInterval(updateClock, 1000); updateClock();
+    }, 1000);
 </script>
 </body>
 </html>
