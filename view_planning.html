@@ -3,136 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENSECO 2026 - EFFECTIFS V4.2</title>
+    <title>CENSECO 2026 - DEBUG PLANNING</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
-        :root { --bg: #020617; --fids: #ffcc00; --accent: #38bdf8; --on: #22c55e; --off: #64748b; --next: #a855f7; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; box-sizing: border-box; }
-        header { border-bottom: 3px solid var(--fids); padding-bottom: 15px; margin-bottom: 20px; text-align: center; }
-        .clock { font-family: monospace; font-size: 2.5em; font-weight: 900; color: var(--fids); line-height: 1; }
-        .current-date { font-size: 1.1em; opacity: 0.8; margin-top: 8px; font-weight: 600; }
-        h2 { text-transform: uppercase; font-size: 0.9em; letter-spacing: 2px; color: var(--accent); border-left: 5px solid var(--accent); padding-left: 12px; margin: 30px 0 15px 0; }
-        .grid-staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
-        .staff-card { background: #1e293b; border-radius: 12px; padding: 12px; border: 1px solid rgba(255,255,255,0.1); position: relative; }
-        .status-dot { position: absolute; top: 10px; right: 10px; width: 8px; height: 8px; border-radius: 50%; background: var(--off); }
-        .active .status-dot { background: var(--on); box-shadow: 0 0 8px var(--on); }
-        .upcoming .status-dot { background: var(--next); box-shadow: 0 0 8px var(--next); }
-        .role { font-size: 0.65em; font-weight: 900; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 3px; }
-        .name { font-size: 1.1em; font-weight: 900; color: white; }
-        .time-range { font-size: 0.8em; font-weight: 800; color: var(--fids); margin-top: 8px; display: block; }
-        .empty-msg { opacity: 0.2; font-style: italic; font-size: 0.8em; padding: 10px; }
+        :root { --bg: #020617; --fids: #ffcc00; --accent: #38bdf8; --on: #22c55e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; }
+        header { border-bottom: 3px solid var(--fids); padding-bottom: 10px; text-align: center; }
+        .clock { font-family: monospace; font-size: 2em; font-weight: 900; color: var(--fids); }
+        .grid-staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; margin-top: 20px; }
+        .staff-card { background: #1e293b; border-radius: 12px; padding: 15px; border: 1px solid var(--accent); }
+        .role { font-size: 0.7em; font-weight: 900; color: var(--accent); display: block; }
+        .name { font-size: 1.2em; font-weight: 900; color: white; display: block; }
+        .time { font-size: 0.8em; color: var(--fids); margin-top: 5px; display: block; }
+        .debug-info { font-size: 0.6em; opacity: 0.5; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px; }
     </style>
 </head>
 <body>
 
 <header>
     <div class="clock" id="clock">00:00:00</div>
-    <div id="fullDate" class="current-date">Chargement...</div>
+    <div id="status" style="font-size: 0.8em; margin-top: 5px;">Connexion Firebase...</div>
 </header>
 
-<section>
-    <h2>🟢 EN POSTE ACTUELLEMENT</h2>
-    <div class="grid-staff" id="staffOn"></div>
-</section>
-
-<section>
-    <h2 style="color:var(--next); border-color:var(--next);">⏳ PROCHAINS TOURNUS (-4H)</h2>
-    <div class="grid-staff" id="staffNext"></div>
-</section>
-
-<section>
-    <h2 style="color:#94a3b8; border-color:#475569;">⚪ REPOS / CONGÉS</h2>
-    <div class="grid-staff" id="staffOff"></div>
-</section>
+<div id="monitorBody" class="grid-staff"></div>
 
 <script>
     const firebaseConfig = { apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU", authDomain: "censeco-2026.firebaseapp.com", databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app", projectId: "censeco-2026", storageBucket: "censeco-2026.firebasestorage.app", messagingSenderId: "1030152312862", appId: "1:1030152312862:web:9618132ec2bcfc7831b60f" };
     firebase.initializeApp(firebaseConfig);
     
-    // SCANNER TOTAL : On écoute la racine du Firebase
+    // On écoute TOUTE la base pour ne rien rater
     const dbRef = firebase.database().ref(); 
 
     dbRef.on('value', snap => {
         const root = snap.val();
-        let allTasks = [];
+        console.log("Données reçues :", root);
+        document.getElementById('status').innerText = root ? "Données reçues, analyse en cours..." : "Base vide ou erreur de connexion";
+        
+        let foundTasks = [];
 
-        // Fonction récursive pour trouver tous les objets qui ressemblent à une tâche de planning
-        function findTasks(obj) {
+        function scan(obj) {
             if (!obj || typeof obj !== 'object') return;
-            // Si l'objet a un nom (text ou personName) ET une date de début, c'est une tâche
-            if ((obj.text || obj.personName) && (obj.start_date || obj.start)) {
-                allTasks.push(obj);
+            // On cherche n'importe quel objet qui a un nom et une date
+            if ((obj.text || obj.personName || obj.label) && (obj.start_date || obj.start)) {
+                foundTasks.push(obj);
             } else {
-                Object.values(obj).forEach(val => findTasks(val));
+                Object.values(obj).forEach(v => scan(v));
             }
         }
-        
-        findTasks(root);
-        renderView(allTasks);
+
+        scan(root);
+        render(foundTasks);
     });
 
-    function renderView(tasks) {
-        const onCont = document.getElementById('staffOn');
-        const nextCont = document.getElementById('staffNext');
-        const offCont = document.getElementById('staffOff');
-        
-        const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-        const nowVal = now.getHours() + (now.getMinutes() / 60);
+    function render(tasks) {
+        const body = document.getElementById('monitorBody');
+        document.getElementById('status').innerText = tasks.length + " élément(s) trouvé(s) dans la base";
 
-        let listOn = []; let listNext = []; let listOff = [];
+        if (tasks.length === 0) {
+            body.innerHTML = '<div style="grid-column:1/-1; text-align:center; opacity:0.5;">Aucune tâche de planning détectée. Vérifiez le nom de la branche Firebase.</div>';
+            return;
+        }
 
-        tasks.forEach(t => {
-            // Mapping flexible des champs
-            const pName = t.personName || t.text;
-            const fullStart = t.start_date || t.start || "";
-            const fullEnd = t.end_date || t.end || "";
+        body.innerHTML = tasks.map(t => {
+            const n = t.personName || t.text || t.label || "Inconnu";
+            const r = t.rowId || "Staff";
+            const s = t.start_date || t.start || "--:--";
+            const e = t.end_date || t.end || "--:--";
             
-            if (!pName || !fullStart) return;
-
-            // Séparer Date et Heure
-            const partsS = fullStart.includes(' ') ? fullStart.split(' ') : [todayStr, fullStart];
-            const tDate = partsS[0];
-            const startTime = partsS[1];
-            
-            const partsE = fullEnd.includes(' ') ? fullEnd.split(' ') : [todayStr, fullEnd];
-            const endTime = partsE[1] || "";
-
-            // On filtre pour aujourd'hui
-            if (tDate === todayStr) {
-                const sH = parseFloat(startTime.split(':')[0]) + (parseFloat(startTime.split(':')[1])/60);
-                const eH = endTime ? parseFloat(endTime.split(':')[0]) + (parseFloat(endTime.split(':')[1])/60) : sH + 4;
-
-                const card = {
-                    name: pName.toUpperCase(),
-                    role: (t.rowId || 'STAFF').replace(/_/g, ' '),
-                    time: `${startTime} - ${endTime}`
-                };
-
-                if (t.rowId === 'CONGÉS' || t.rowId === 'CONGÉ' || t.rowId === 'CONGE') {
-                    listOff.push(card);
-                } else if (nowVal >= sH && nowVal < eH) {
-                    listOn.push(card);
-                } else if (sH > nowVal && sH < nowVal + 4) {
-                    listNext.push(card);
-                }
-            }
-        });
-
-        const html = (d, cl) => `<div class="staff-card ${cl}"><div class="status-dot"></div><span class="role">${d.role}</span><span class="name">${d.name}</span><span class="time-range">${d.time}</span></div>`;
-
-        onCont.innerHTML = listOn.length ? listOn.map(d => html(d, 'active')).join('') : '<div class="empty-msg">Aucun personnel en poste.</div>';
-        nextCont.innerHTML = listNext.length ? listNext.map(d => html(d, 'upcoming')).join('') : '<div class="empty-msg">Aucun tournus proche.</div>';
-        offCont.innerHTML = listOff.length ? listOff.map(d => html(d, 'off')).join('') : '<div class="empty-msg">-</div>';
+            return `
+                <div class="staff-card">
+                    <span class="role">${r.replace(/_/g, ' ')}</span>
+                    <span class="name">${n.toUpperCase()}</span>
+                    <span class="time">${s.split(' ')[1] || s} - ${e.split(' ')[1] || e}</span>
+                    <div class="debug-info">Date brute: ${s.split(' ')[0]}</div>
+                </div>
+            `;
+        }).join('');
     }
 
-    function updateClock() {
-        const n = new Date();
-        document.getElementById('clock').innerText = n.toLocaleTimeString('fr-FR');
-        document.getElementById('fullDate').innerText = `Nous sommes le ${n.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}`;
-    }
-    setInterval(updateClock, 1000); updateClock();
+    setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString('fr-FR'); }, 1000);
 </script>
 </body>
 </html>
