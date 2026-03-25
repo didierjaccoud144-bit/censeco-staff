@@ -3,25 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENSECO - MONITOR LIVE V6.5</title>
+    <title>CENSECO - MONITOR LIVE V6.6</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
-        :root { --bg: #020617; --fids: #ffcc00; --accent: #38bdf8; --on: #22c55e; --off: #64748b; --next: #a855f7; }
+        :root { 
+            --bg: #020617; --fids: #ffcc00; --accent: #38bdf8; 
+            --on: #22c55e; --off: #64748b; --next: #a855f7;
+            --form: #f59e0b; --piq: #10b981;
+        }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; box-sizing: border-box; }
         header { border-bottom: 3px solid var(--fids); padding-bottom: 15px; margin-bottom: 10px; text-align: center; }
         .clock { font-family: monospace; font-size: 2.8em; font-weight: 900; color: var(--fids); line-height: 1; }
-        h2 { text-transform: uppercase; font-size: 0.9em; letter-spacing: 2px; color: var(--accent); border-left: 5px solid var(--accent); padding-left: 12px; margin: 25px 0 15px 0; }
+        
+        section { margin-bottom: 30px; }
+        h2 { text-transform: uppercase; font-size: 0.85em; letter-spacing: 2px; border-left: 5px solid; padding-left: 12px; margin: 25px 0 15px 0; }
+        
+        /* Couleurs de sections */
+        .sec-on { color: var(--on); border-color: var(--on); }
+        .sec-next { color: var(--next); border-color: var(--next); }
+        .sec-piq { color: var(--piq); border-color: var(--piq); }
+        .sec-form { color: var(--form); border-color: var(--form); }
+        .sec-off { color: var(--off); border-color: var(--off); }
+
         .grid-staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 12px; }
-        .staff-card { background: #1e293b; border-radius: 12px; padding: 15px; border: 1px solid rgba(255,255,255,0.1); position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .staff-card { background: #1e293b; border-radius: 12px; padding: 15px; border: 1px solid rgba(255,255,255,0.1); position: relative; }
+        
         .status-dot { position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; border-radius: 50%; background: var(--off); }
         .active .status-dot { background: var(--on); box-shadow: 0 0 10px var(--on); }
         .upcoming .status-dot { background: var(--next); box-shadow: 0 0 10px var(--next); }
-        .role { font-size: 0.65em; font-weight: 900; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .piq-card .status-dot { background: var(--piq); box-shadow: 0 0 10px var(--piq); }
+        .form-card .status-dot { background: var(--form); box-shadow: 0 0 10px var(--form); }
+
+        .role { font-size: 0.65em; font-weight: 900; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 4px; }
         .name { font-size: 1.1em; font-weight: 900; color: white; line-height: 1.2; }
         .date-tag { font-size: 0.6em; opacity: 0.5; display: block; margin-top: 5px; font-weight: bold; }
         .time { font-size: 0.8em; font-weight: 800; color: var(--fids); margin-top: 10px; display: block; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 6px; text-align: center; }
-        .empty-msg { opacity: 0.2; font-style: italic; font-size: 0.85em; }
+        .empty-msg { opacity: 0.2; font-style: italic; font-size: 0.85em; padding-left: 15px; }
     </style>
 </head>
 <body>
@@ -31,20 +49,11 @@
     <div id="fullDate" style="font-size: 1em; opacity: 0.8; margin-top: 10px; font-weight: 600;"></div>
 </header>
 
-<section>
-    <h2>🟢 EN POSTE ACTUELLEMENT</h2>
-    <div class="grid-staff" id="staffOn"></div>
-</section>
-
-<section>
-    <h2 style="color:var(--next); border-color:var(--next);">⏳ PROCHAINS TOURNUS (H+24)</h2>
-    <div class="grid-staff" id="staffNext"></div>
-</section>
-
-<section>
-    <h2 style="color:var(--off); border-color:var(--off);">⚪ REPOS / FORMATION / PIQUET</h2>
-    <div class="grid-staff" id="staffOff"></div>
-</section>
+<section><h2 class="sec-on">🟢 EN POSTE</h2><div class="grid-staff" id="staffOn"></div></section>
+<section><h2 class="sec-next">⏳ PROCHAINS TOURNUS (H+24)</h2><div class="grid-staff" id="staffNext"></div></section>
+<section><h2 class="sec-piq">📞 PIQUET EN COURS</h2><div class="grid-staff" id="staffPiq"></div></section>
+<section><h2 class="sec-form">🎓 FORMATION</h2><div class="grid-staff" id="staffForm"></div></section>
+<section><h2 class="sec-off">⚪ REPOS / CONGÉS</h2><div class="grid-staff" id="staffOff"></div></section>
 
 <script>
     const firebaseConfig = { apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU", authDomain: "censeco-2026.firebaseapp.com", databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app", projectId: "censeco-2026", storageBucket: "censeco-2026.firebasestorage.app", messagingSenderId: "1030152312862", appId: "1:1030152312862:web:9618132ec2bcfc7831b60f" };
@@ -52,7 +61,6 @@
     const db = firebase.database();
 
     let dynamicFcts = [];
-    const specialKeys = ["cng", "form", "piq"];
     const specialNames = { cng: "🏖️ CONGÉ/PAUSE", form: "🎓 FORMATION", piq: "📞 PIQUET" };
 
     function iToT(i) { return `${Math.floor(i/2).toString().padStart(2,'0')}:${(i%2===0)?"00":"30"}`; }
@@ -73,9 +81,8 @@
             ]).then(snaps => {
                 snaps.forEach((snap, idx) => {
                     const dayDate = idx === 0 ? today : tomorrow;
-                    const data = snap.val();
-                    if(data && data.shifts) {
-                        data.shifts.forEach(s => allShifts.push({...s, day: dayDate}));
+                    if(snap.val() && snap.val().shifts) {
+                        snap.val().shifts.forEach(s => allShifts.push({...s, day: dayDate}));
                     }
                 });
                 render(allShifts, nowI, today);
@@ -84,17 +91,19 @@
     }
 
     function render(shifts, nowI, today) {
-        let hOn = "", hNext = "", hOff = "";
+        let hOn = "", hNext = "", hOff = "", hPiq = "", hForm = "";
         shifts.sort((a,b) => (a.day === b.day) ? (a.sI - b.sI) : (a.day > b.day ? 1 : -1));
 
         shifts.forEach(s => {
             const isToday = (s.day === today);
-            const isSpec = specialKeys.includes(s.pVal);
-            const roleName = isSpec ? specialNames[s.pVal] : (dynamicFcts[s.pVal] || "STAFF");
+            const roleName = specialNames[s.pVal] || (dynamicFcts[s.pVal] || "STAFF");
             const dateFmt = new Date(s.day).toLocaleDateString('fr-FR', {day:'numeric', month:'short'}).toUpperCase();
             const endI = s.sI + s.dur;
             
-            const card = `<div class="staff-card ${isSpec ? 'off' : (isToday && nowI >= s.sI && nowI < endI ? 'active' : 'upcoming')}">
+            // On ne traite que ce qui n'est pas fini pour aujourd'hui
+            if (isToday && nowI >= endI) return;
+
+            const card = (typeClass) => `<div class="staff-card ${typeClass}">
                 <div class="status-dot"></div>
                 <span class="role">${roleName}</span>
                 <span class="name">${s.n.toUpperCase()}</span>
@@ -102,23 +111,26 @@
                 <span class="time">🕒 ${iToT(s.sI)} - ${iToT(endI)}</span>
             </div>`;
 
-            if (isSpec) {
-                // On affiche si c'est futur ou en cours (pas si c'est fini aujourd'hui)
-                if (!isToday || (isToday && nowI < endI)) {
-                    hOff += card;
-                }
+            if (s.pVal === "piq") {
+                hPiq += card("piq-card");
+            } else if (s.pVal === "form") {
+                hForm += card("form-card");
+            } else if (s.pVal === "cng") {
+                hOff += card("off-card");
             } else if (isToday && nowI >= s.sI && nowI < endI) {
-                hOn += card;
+                hOn += card("active");
             } else {
                 const absoluteStart = (isToday ? s.sI : s.sI + 48);
                 if (absoluteStart > nowI && absoluteStart <= (nowI + 48)) {
-                    hNext += card;
+                    hNext += card("upcoming");
                 }
             }
         });
 
         document.getElementById('staffOn').innerHTML = hOn || '<div class="empty-msg">Aucun effectif en poste</div>';
         document.getElementById('staffNext').innerHTML = hNext || '<div class="empty-msg">Aucune relève dans les 24h</div>';
+        document.getElementById('staffPiq').innerHTML = hPiq || '<div class="empty-msg">Aucun piquet</div>';
+        document.getElementById('staffForm').innerHTML = hForm || '<div class="empty-msg">Aucune formation</div>';
         document.getElementById('staffOff').innerHTML = hOff || '<div class="empty-msg">-</div>';
     }
 
