@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>CENSECO 2026 - MASTER PLANNING PRO V2.3</title>
+    <title>CENSECO 2026 - MASTER PLANNING V2.5</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
@@ -14,6 +14,8 @@
         label { font-size: 0.65em; font-weight: 900; color: var(--fids); text-transform: uppercase; letter-spacing: 1px; }
         select, input { background: #0f172a; border: 1px solid #4338ca; color: white; padding: 6px; border-radius: 4px; font-weight: bold; font-size: 0.9em; }
         .btn-v { background: #15803d; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: 900; cursor: pointer; }
+        .btn-nav { background: #334155; color: white; border: 1px solid var(--fids); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 900; }
+        .btn-nav:hover { background: var(--accent); }
         .plan-wrap { flex: 1; overflow: auto; padding: 20px; position: relative; scroll-behavior: smooth; }
         .grid { display: grid; grid-template-columns: var(--lab-w) repeat(48, var(--col-w)); background: var(--card); border: 1px solid #334155; position: relative; width: max-content; }
         .h-time { background: #000; color: var(--fids); font-weight: 900; font-size: 0.75em; text-align: center; padding: 12px 0; border-bottom: 2px solid var(--fids); position: sticky; top: 0; z-index: 20; border-right: 1px solid #334155; }
@@ -34,7 +36,14 @@
         <div id="clock" style="font-family:monospace; color:var(--fids); font-weight:900; font-size: 1.2em;">00:00:00</div>
     </div>
     <div class="pnl">
-        <div class="ig"><label>Date</label><input type="date" id="planDate" onchange="loadDay()"></div>
+        <div class="ig">
+            <label>Date de mission</label>
+            <div style="display:flex; gap:5px; align-items:center;">
+                <button class="btn-nav" onclick="changeDay(-1)">‹</button>
+                <input type="date" id="planDate" onchange="loadDay()">
+                <button class="btn-nav" onclick="changeDay(1)">›</button>
+            </div>
+        </div>
         <div class="ig"><label>Personnel</label><select id="selP"></select></div>
         <div class="ig"><label>Fonction</label><select id="selF"></select></div>
         <div class="ig"><label>Début</label><input type="time" id="sH" step="1800" value="08:00"></div>
@@ -50,8 +59,8 @@
 
 <div class="plan-wrap" id="scA"><div class="grid" id="grM"></div></div>
 
-<div id="modEq" class="modal"><h4>Équipe</h4><input type="text" id="newN" style="width:100%"><button onclick="addItem('members', 'newN')" style="width:100%; margin-top:10px">Ajouter</button><div id="listEq"></div><button onclick="closeMod('modEq')">Fermer</button></div>
-<div id="modFct" class="modal"><h4>Fonctions</h4><input type="text" id="newF" style="width:100%"><button onclick="addItem('fcts', 'newF')" style="width:100%; margin-top:10px">Ajouter</button><div id="listFct"></div><button onclick="closeMod('modFct')">Fermer</button></div>
+<div id="modEq" class="modal"><h4>Équipe</h4><input type="text" id="newN" style="width:100%"><button onclick="addItem('members', 'newN')" style="width:100%; margin-top:10px">Ajouter</button><div id="listEq" style="max-height:200px; overflow:auto; margin-top:10px;"></div><button onclick="closeMod('modEq')" style="width:100%; margin-top:10px;">Fermer</button></div>
+<div id="modFct" class="modal"><h4>Fonctions</h4><input type="text" id="newF" style="width:100%"><button onclick="addItem('fcts', 'newF')" style="width:100%; margin-top:10px">Ajouter</button><div id="listFct" style="max-height:200px; overflow:auto; margin-top:10px;"></div><button onclick="closeMod('modFct')" style="width:100%; margin-top:10px;">Fermer</button></div>
 
 <script>
     const firebaseConfig = { apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU", authDomain: "censeco-2026.firebaseapp.com", databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app", projectId: "censeco-2026", storageBucket: "censeco-2026.firebasestorage.app", messagingSenderId: "1030152312862", appId: "1:1030152312862:web:9618132ec2bcfc7831b60f" };
@@ -68,8 +77,18 @@
         setInterval(upLive, 1000);
     };
 
+    function changeDay(delta) {
+        const current = new Date(document.getElementById('planDate').value);
+        current.setDate(current.getDate() + delta);
+        document.getElementById('planDate').value = current.toISOString().split('T')[0];
+        loadDay();
+    }
+
     function loadDay() {
         const date = document.getElementById('planDate').value;
+        db.ref('planning_pdg/config').off();
+        db.ref('planning_pdg/' + date).off();
+
         db.ref('planning_pdg/config').on('value', snap => {
             const c = snap.val();
             if(c) { members = c.members || []; fcts = c.fcts || []; }
@@ -83,6 +102,7 @@
 
     function initG() {
         const g = document.getElementById('grM');
+        g.innerHTML = "";
         let h = `<div class="h-time" style="position:sticky; left:0; z-index:21; border-right:2px solid var(--fids)">FONCTIONS</div>`;
         for(let i=0; i<48; i++) {
             let hr = Math.floor(i/2).toString().padStart(2,'0'), mn = (i%2===0)?"00":"30";
@@ -92,12 +112,9 @@
             h += `<div class="l-post">${p}</div>`;
             for(let j=0; j<48; j++) h += `<div class="cell" id="s-${i}-${j}"></div>`;
         });
-        
-        // LIGNES SPÉCIALES
         h += `<div class="l-post" id="l-cng" style="color:var(--fids)">CONGÉS/PAUSE</div><div class="l-cng" id="cC-cng" style="grid-column:2/span 48; position:relative; min-height:45px;"></div>`;
         h += `<div class="l-post" id="l-form" style="color:var(--accent)">FORMATION</div><div class="l-cng" id="cC-form" style="grid-column:2/span 48; position:relative; min-height:45px;"></div>`;
         h += `<div class="l-post" id="l-piq" style="color:#22c55e">PIQUET</div><div class="l-cng" id="cC-piq" style="grid-column:2/span 48; position:relative; min-height:45px;"></div>`;
-        
         h += `<div id="nowL"></div>`;
         g.innerHTML = h;
         renderS();
@@ -105,14 +122,12 @@
 
     function renderS() {
         let levels = { cng: [], form: [], piq: [] };
-
         shifts.forEach(s => {
             const d = document.createElement('div');
             const isSpec = specialRows.includes(s.pVal);
             d.className = 's-blk' + (isSpec ? " special" : "");
             d.style.width = (s.dur*120-8)+"px";
             d.innerHTML = `<span>${s.n.toUpperCase()}</span><button class="b-del" onclick="delS(${s.id})">×</button>`;
-            
             if(isSpec) {
                 const cC = document.getElementById('cC-' + s.pVal);
                 const lC = document.getElementById('l-' + s.pVal);
@@ -120,12 +135,11 @@
                 while(levels[s.pVal][lv] && levels[s.pVal][lv].some(b => !(s.sI >= b.e || (s.sI + s.dur) <= b.s))) lv++;
                 if(!levels[s.pVal][lv]) levels[s.pVal][lv] = [];
                 levels[s.pVal][lv].push({s:s.sI, e:s.sI+s.dur});
-
                 d.style.left = (s.sI*120+4) + "px";
                 d.style.top = (lv * 45 + 4) + "px";
                 cC.appendChild(d);
                 cC.style.height = ((lv+1)*45)+"px";
-                lC.style.height = ((lv+1)*45)+"px";
+                if(lC) lC.style.height = ((lv+1)*45)+"px";
             } else {
                 const cell = document.getElementById(`s-${s.pVal}-${s.sI}`);
                 if(cell) { d.style.left = "4px"; d.style.backgroundColor = clrs[s.pVal % clrs.length]; cell.appendChild(d); }
@@ -137,21 +151,15 @@
         const dateStr = document.getElementById('planDate').value;
         const n = document.getElementById('selP').value, pVal = document.getElementById('selF').value;
         const sI = tToI(document.getElementById('sH').value), eI = tToI(document.getElementById('eH').value);
-        
-        // GESTION MINUIT
         if (eI <= sI) {
-            // Bloc 1 : De Début à Minuit (48)
             const shiftsToday = [...shifts, { id:Date.now(), n, pVal, sI, dur: 48-sI }];
             db.ref('planning_pdg/' + dateStr).update({ shifts: shiftsToday });
-
-            // Bloc 2 : De Minuit (0) à Fin sur le lendemain
             const nextDate = new Date(new Date(dateStr).getTime() + 86400000).toISOString().split('T')[0];
             db.ref('planning_pdg/' + nextDate + '/shifts').once('value', snap => {
-                const nextShifts = snap.val() || [];
-                nextShifts.push({ id:Date.now()+1, n, pVal, sI: 0, dur: eI });
-                db.ref('planning_pdg/' + nextDate).update({ shifts: nextShifts });
+                const ns = snap.val() || [];
+                ns.push({ id:Date.now()+1, n, pVal, sI: 0, dur: eI });
+                db.ref('planning_pdg/' + nextDate).update({ shifts: ns });
             });
-            alert("Mission à cheval sur 2 jours créée !");
         } else {
             shifts.push({ id:Date.now(), n, pVal, sI, dur: eI-sI });
             db.ref('planning_pdg/' + dateStr).update({ shifts });
@@ -169,18 +177,24 @@
         document.getElementById('selP').innerHTML = members.map(m => `<option>${m}</option>`).join('');
         document.getElementById('selF').innerHTML = fcts.map((f, i) => `<option value="${i}">${f}</option>`).join('') + 
             `<option value="cng">🏖️ CONGÉ/PAUSE</option><option value="form">🎓 FORMATION</option><option value="piq">📞 PIQUET</option>`;
-        document.getElementById('listEq').innerHTML = members.map(m => `<div>${m} <span onclick="removeItem('members','${m}')">×</span></div>`).join('');
-        document.getElementById('listFct').innerHTML = fcts.map(f => `<div>${f} <span onclick="removeItem('fcts','${f}')">×</span></div>`).join('');
+        document.getElementById('listEq').innerHTML = members.map(m => `<div style="display:flex; justify-content:space-between; margin-bottom:5px"><span>${m}</span><span onclick="removeItem('members','${m}')" style="color:red; cursor:pointer">×</span></div>`).join('');
+        document.getElementById('listFct').innerHTML = fcts.map(f => `<div style="display:flex; justify-content:space-between; margin-bottom:5px"><span>${f}</span><span onclick="removeItem('fcts','${f}')" style="color:red; cursor:pointer">×</span></div>`).join('');
     }
     function openMod(id) { document.getElementById(id).style.display='block'; }
     function closeMod(id) { document.getElementById(id).style.display='none'; }
     function addItem(t, id) { 
         const v = document.getElementById(id).value; 
-        if(v) { if(t==='members') members.push(v); else fcts.push(v); db.ref('planning_pdg/config').update({members, fcts}); }
+        if(v) { if(t==='members') members.push(v); else fcts.push(v); db.ref('planning_pdg/config').update({members, fcts}); document.getElementById(id).value=''; }
     }
     function removeItem(t, v) { if(confirm('Supprimer?')) { if(t==='members') members=members.filter(x=>x!==v); else fcts=fcts.filter(x=>x!==v); db.ref('planning_pdg/config').update({members, fcts}); }}
     function scNow() { const n = new Date(); document.getElementById('scA').scrollLeft = (n.getHours()*240)-240; }
-    function upLive() { const n = new Date(); document.getElementById('nowL').style.left = (180 + (((n.getHours()*60)+n.getMinutes())*4)) + "px"; document.getElementById('clock').innerText = n.toLocaleTimeString('fr-FR'); }
+    function upLive() {
+        const n = new Date();
+        const l = 180 + (((n.getHours()*60)+n.getMinutes()) * 4);
+        const line = document.getElementById('nowL');
+        if(line) line.style.left = l+"px";
+        document.getElementById('clock').innerText = n.toLocaleTimeString('fr-FR');
+    }
 </script>
 </body>
 </html>
