@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENSECO - MONITOR LIVE V6.6</title>
+    <title>CENSECO - MONITOR LIVE V6.7</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
@@ -21,8 +21,8 @@
         
         /* Couleurs de sections */
         .sec-on { color: var(--on); border-color: var(--on); }
-        .sec-next { color: var(--next); border-color: var(--next); }
         .sec-piq { color: var(--piq); border-color: var(--piq); }
+        .sec-next { color: var(--next); border-color: var(--next); }
         .sec-form { color: var(--form); border-color: var(--form); }
         .sec-off { color: var(--off); border-color: var(--off); }
 
@@ -31,8 +31,8 @@
         
         .status-dot { position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; border-radius: 50%; background: var(--off); }
         .active .status-dot { background: var(--on); box-shadow: 0 0 10px var(--on); }
-        .upcoming .status-dot { background: var(--next); box-shadow: 0 0 10px var(--next); }
         .piq-card .status-dot { background: var(--piq); box-shadow: 0 0 10px var(--piq); }
+        .upcoming .status-dot { background: var(--next); box-shadow: 0 0 10px var(--next); }
         .form-card .status-dot { background: var(--form); box-shadow: 0 0 10px var(--form); }
 
         .role { font-size: 0.65em; font-weight: 900; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 4px; }
@@ -50,8 +50,9 @@
 </header>
 
 <section><h2 class="sec-on">🟢 EN POSTE</h2><div class="grid-staff" id="staffOn"></div></section>
+<section><h2 class="sec-piq">📞 PIQUET EN COURS (J / J+1)</h2><div class="grid-staff" id="staffPiq"></div></section>
+
 <section><h2 class="sec-next">⏳ PROCHAINS TOURNUS (H+24)</h2><div class="grid-staff" id="staffNext"></div></section>
-<section><h2 class="sec-piq">📞 PIQUET EN COURS</h2><div class="grid-staff" id="staffPiq"></div></section>
 <section><h2 class="sec-form">🎓 FORMATION</h2><div class="grid-staff" id="staffForm"></div></section>
 <section><h2 class="sec-off">⚪ REPOS / CONGÉS</h2><div class="grid-staff" id="staffOff"></div></section>
 
@@ -91,7 +92,7 @@
     }
 
     function render(shifts, nowI, today) {
-        let hOn = "", hNext = "", hOff = "", hPiq = "", hForm = "";
+        let hOn = "", hPiq = "", hNext = "", hForm = "", hOff = "";
         shifts.sort((a,b) => (a.day === b.day) ? (a.sI - b.sI) : (a.day > b.day ? 1 : -1));
 
         shifts.forEach(s => {
@@ -100,7 +101,6 @@
             const dateFmt = new Date(s.day).toLocaleDateString('fr-FR', {day:'numeric', month:'short'}).toUpperCase();
             const endI = s.sI + s.dur;
             
-            // On ne traite que ce qui n'est pas fini pour aujourd'hui
             if (isToday && nowI >= endI) return;
 
             const card = (typeClass) => `<div class="staff-card ${typeClass}">
@@ -128,8 +128,8 @@
         });
 
         document.getElementById('staffOn').innerHTML = hOn || '<div class="empty-msg">Aucun effectif en poste</div>';
-        document.getElementById('staffNext').innerHTML = hNext || '<div class="empty-msg">Aucune relève dans les 24h</div>';
         document.getElementById('staffPiq').innerHTML = hPiq || '<div class="empty-msg">Aucun piquet</div>';
+        document.getElementById('staffNext').innerHTML = hNext || '<div class="empty-msg">Aucune relève dans les 24h</div>';
         document.getElementById('staffForm').innerHTML = hForm || '<div class="empty-msg">Aucune formation</div>';
         document.getElementById('staffOff').innerHTML = hOff || '<div class="empty-msg">-</div>';
     }
