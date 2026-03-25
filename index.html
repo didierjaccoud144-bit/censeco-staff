@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>CENSECO 2026 - MASTER PLANNING PRO V2.2</title>
+    <title>CENSECO 2026 - MASTER PLANNING PRO V2.3</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
@@ -20,10 +20,10 @@
         .l-post { background: #000; color: white; font-weight: 900; font-size: 0.75em; padding-left: 15px; display: flex; align-items: center; border-bottom: 1px solid #334155; position: sticky; left: 0; z-index: 15; min-height: var(--row-h); border-right: 2px solid var(--fids); }
         .cell { height: var(--row-h); border-bottom: 1px solid rgba(148, 163, 184, 0.1); border-right: 1px solid rgba(148, 163, 184, 0.1); position: relative; }
         .s-blk { position: absolute; top: 4px; border-radius: 4px; display: flex; align-items: center; padding-left: 10px; font-weight: 900; font-size: 0.8em; color: white; border: 1px solid rgba(255,255,255,0.2); z-index: 5; height: 37px; box-shadow: 2px 2px 5px rgba(0,0,0,0.3); overflow: hidden; }
-        .s-blk.cng { background: #475569 !important; border-left: 4px solid #94a3b8; }
+        .s-blk.special { background: #475569 !important; border-left: 4px solid #94a3b8; }
         #nowL { position: absolute; top: 0; bottom: 0; width: 3px; background: var(--live); z-index: 100; pointer-events: none; box-shadow: 0 0 15px var(--live); }
         .b-del { margin-left: auto; margin-right: 8px; background: rgba(0,0,0,0.4); color: white; border: none; border-radius: 50%; cursor: pointer; width: 18px; height: 18px; font-size: 10px; flex-shrink: 0; }
-        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e293b; padding: 20px; border-radius: 12px; border: 2px solid var(--fids); z-index: 1000; width: 320px; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e293b; padding: 20px; border-radius: 12px; border: 2px solid var(--fids); z-index: 1000; width: 320px; }
     </style>
 </head>
 <body>
@@ -33,7 +33,6 @@
         <div style="font-weight:900; font-size: 1.1em;">CENSECO 2026 - <span style="color:var(--fids)">PLANNING PRO</span></div>
         <div id="clock" style="font-family:monospace; color:var(--fids); font-weight:900; font-size: 1.2em;">00:00:00</div>
     </div>
-    
     <div class="pnl">
         <div class="ig"><label>Date</label><input type="date" id="planDate" onchange="loadDay()"></div>
         <div class="ig"><label>Personnel</label><select id="selP"></select></div>
@@ -41,7 +40,6 @@
         <div class="ig"><label>Début</label><input type="time" id="sH" step="1800" value="08:00"></div>
         <div class="ig"><label>Fin</label><input type="time" id="eH" step="1800" value="12:00"></div>
         <button class="btn-v" onclick="addSh()">VALIDER</button>
-        
         <div style="margin-left: auto; display: flex; gap: 8px;">
             <button onclick="scNow()" style="background:var(--live); color:white; border:none; padding:10px 15px; border-radius:4px; cursor:pointer; font-weight:900;">🎯 LIVE</button>
             <button onclick="openMod('modEq')" style="background:#334155; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer; font-size:0.7em;">👥 ÉQUIPE</button>
@@ -52,21 +50,8 @@
 
 <div class="plan-wrap" id="scA"><div class="grid" id="grM"></div></div>
 
-<div id="modEq" class="modal">
-    <h4>Équipe</h4>
-    <input type="text" id="newN" placeholder="Nom..." style="width:100%; padding:8px; box-sizing:border-box;">
-    <button onclick="addItem('members', 'newN')" style="width:100%; background:var(--accent); color:white; border:none; padding:10px; margin-top:10px; border-radius:4px;">Ajouter</button>
-    <div id="listEq" style="max-height:200px; overflow:auto; margin-top:10px; background:#0f172a; padding:5px;"></div>
-    <button onclick="closeMod('modEq')" style="width:100%; margin-top:15px; background:transparent; color:white; border:1px solid #444; padding:8px;">Fermer</button>
-</div>
-
-<div id="modFct" class="modal">
-    <h4>Fonctions</h4>
-    <input type="text" id="newF" placeholder="Poste..." style="width:100%; padding:8px; box-sizing:border-box;">
-    <button onclick="addItem('fcts', 'newF')" style="width:100%; background:var(--accent); color:white; border:none; padding:10px; margin-top:10px; border-radius:4px;">Ajouter</button>
-    <div id="listFct" style="max-height:200px; overflow:auto; margin-top:10px; background:#0f172a; padding:5px;"></div>
-    <button onclick="closeMod('modFct')" style="width:100%; margin-top:15px; background:transparent; color:white; border:1px solid #444; padding:8px;">Fermer</button>
-</div>
+<div id="modEq" class="modal"><h4>Équipe</h4><input type="text" id="newN" style="width:100%"><button onclick="addItem('members', 'newN')" style="width:100%; margin-top:10px">Ajouter</button><div id="listEq"></div><button onclick="closeMod('modEq')">Fermer</button></div>
+<div id="modFct" class="modal"><h4>Fonctions</h4><input type="text" id="newF" style="width:100%"><button onclick="addItem('fcts', 'newF')" style="width:100%; margin-top:10px">Ajouter</button><div id="listFct"></div><button onclick="closeMod('modFct')">Fermer</button></div>
 
 <script>
     const firebaseConfig = { apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU", authDomain: "censeco-2026.firebaseapp.com", databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app", projectId: "censeco-2026", storageBucket: "censeco-2026.firebasestorage.app", messagingSenderId: "1030152312862", appId: "1:1030152312862:web:9618132ec2bcfc7831b60f" };
@@ -75,6 +60,7 @@
 
     let fcts = []; let members = []; let shifts = [];
     const clrs = ["#4338ca", "#059669", "#d97706", "#7c3aed", "#be185d", "#0369a1", "#1e40af", "#065f46", "#92400e", "#6b21a8", "#b91c1c"];
+    const specialRows = ["cng", "form", "piq"];
 
     window.onload = () => {
         document.getElementById('planDate').value = new Date().toISOString().split('T')[0];
@@ -106,50 +92,70 @@
             h += `<div class="l-post">${p}</div>`;
             for(let j=0; j<48; j++) h += `<div class="cell" id="s-${i}-${j}"></div>`;
         });
-        h += `<div class="l-post" id="lC" style="color:var(--fids)">CONGÉS</div><div class="l-cng" id="cC" style="grid-column:2/span 48; position:relative; min-height:45px;"></div><div id="nowL"></div>`;
+        
+        // LIGNES SPÉCIALES
+        h += `<div class="l-post" id="l-cng" style="color:var(--fids)">CONGÉS/PAUSE</div><div class="l-cng" id="cC-cng" style="grid-column:2/span 48; position:relative; min-height:45px;"></div>`;
+        h += `<div class="l-post" id="l-form" style="color:var(--accent)">FORMATION</div><div class="l-cng" id="cC-form" style="grid-column:2/span 48; position:relative; min-height:45px;"></div>`;
+        h += `<div class="l-post" id="l-piq" style="color:#22c55e">PIQUET</div><div class="l-cng" id="cC-piq" style="grid-column:2/span 48; position:relative; min-height:45px;"></div>`;
+        
+        h += `<div id="nowL"></div>`;
         g.innerHTML = h;
         renderS();
     }
 
     function renderS() {
-        const cC = document.getElementById('cC'), lC = document.getElementById('lC');
-        let cLvl = []; // Gestion des étages pour les congés
+        let levels = { cng: [], form: [], piq: [] };
 
         shifts.forEach(s => {
             const d = document.createElement('div');
-            d.className = 's-blk' + (s.pVal === "cng" ? " cng" : "");
+            const isSpec = specialRows.includes(s.pVal);
+            d.className = 's-blk' + (isSpec ? " special" : "");
             d.style.width = (s.dur*120-8)+"px";
             d.innerHTML = `<span>${s.n.toUpperCase()}</span><button class="b-del" onclick="delS(${s.id})">×</button>`;
             
-            if(s.pVal === "cng") {
-                // Calcul de l'étage (level) pour ne pas se chevaucher
+            if(isSpec) {
+                const cC = document.getElementById('cC-' + s.pVal);
+                const lC = document.getElementById('l-' + s.pVal);
                 let lv = 0;
-                while(cLvl[lv] && cLvl[lv].some(b => !(s.sI >= b.e || (s.sI + s.dur) <= b.s))) lv++;
-                if(!cLvl[lv]) cLvl[lv] = [];
-                cLvl[lv].push({s:s.sI, e:s.sI+s.dur});
+                while(levels[s.pVal][lv] && levels[s.pVal][lv].some(b => !(s.sI >= b.e || (s.sI + s.dur) <= b.s))) lv++;
+                if(!levels[s.pVal][lv]) levels[s.pVal][lv] = [];
+                levels[s.pVal][lv].push({s:s.sI, e:s.sI+s.dur});
 
                 d.style.left = (s.sI*120+4) + "px";
-                d.style.top = (lv * 45 + 4) + "px"; // On descend de 45px par étage
+                d.style.top = (lv * 45 + 4) + "px";
                 cC.appendChild(d);
+                cC.style.height = ((lv+1)*45)+"px";
+                lC.style.height = ((lv+1)*45)+"px";
             } else {
                 const cell = document.getElementById(`s-${s.pVal}-${s.sI}`);
                 if(cell) { d.style.left = "4px"; d.style.backgroundColor = clrs[s.pVal % clrs.length]; cell.appendChild(d); }
             }
         });
-
-        // Ajuster la hauteur de la ligne CONGÉS selon le nombre d'étages
-        const totalLv = Math.max(cLvl.length, 1);
-        cC.style.height = (totalLv * 45) + "px";
-        lC.style.height = (totalLv * 45) + "px";
     }
 
     function addSh() {
-        const date = document.getElementById('planDate').value;
+        const dateStr = document.getElementById('planDate').value;
         const n = document.getElementById('selP').value, pVal = document.getElementById('selF').value;
         const sI = tToI(document.getElementById('sH').value), eI = tToI(document.getElementById('eH').value);
-        if(eI <= sI) return alert("Heure invalide");
-        shifts.push({ id:Date.now(), n, pVal, sI, dur: eI-sI });
-        db.ref('planning_pdg/' + date).update({ shifts });
+        
+        // GESTION MINUIT
+        if (eI <= sI) {
+            // Bloc 1 : De Début à Minuit (48)
+            const shiftsToday = [...shifts, { id:Date.now(), n, pVal, sI, dur: 48-sI }];
+            db.ref('planning_pdg/' + dateStr).update({ shifts: shiftsToday });
+
+            // Bloc 2 : De Minuit (0) à Fin sur le lendemain
+            const nextDate = new Date(new Date(dateStr).getTime() + 86400000).toISOString().split('T')[0];
+            db.ref('planning_pdg/' + nextDate + '/shifts').once('value', snap => {
+                const nextShifts = snap.val() || [];
+                nextShifts.push({ id:Date.now()+1, n, pVal, sI: 0, dur: eI });
+                db.ref('planning_pdg/' + nextDate).update({ shifts: nextShifts });
+            });
+            alert("Mission à cheval sur 2 jours créée !");
+        } else {
+            shifts.push({ id:Date.now(), n, pVal, sI, dur: eI-sI });
+            db.ref('planning_pdg/' + dateStr).update({ shifts });
+        }
     }
 
     function delS(id) {
@@ -161,34 +167,20 @@
     function tToI(t) { const [h,m] = t.split(':').map(Number); return h*2 + (m>=30?1:0); }
     function updateSels() {
         document.getElementById('selP').innerHTML = members.map(m => `<option>${m}</option>`).join('');
-        document.getElementById('selF').innerHTML = fcts.map((f, i) => `<option value="${i}">${f}</option>`).join('') + `<option value="cng">🏖️ CONGÉ</option>`;
-        document.getElementById('listEq').innerHTML = members.map(m => `<div style="display:flex; justify-content:space-between; margin-bottom:5px"><span>${m}</span><span onclick="removeItem('members', '${m}')" style="color:red; cursor:pointer">×</span></div>`).join('');
-        document.getElementById('listFct').innerHTML = fcts.map(f => `<div style="display:flex; justify-content:space-between; margin-bottom:5px"><span>${f}</span><span onclick="removeItem('fcts', '${f}')" style="color:red; cursor:pointer">×</span></div>`).join('');
+        document.getElementById('selF').innerHTML = fcts.map((f, i) => `<option value="${i}">${f}</option>`).join('') + 
+            `<option value="cng">🏖️ CONGÉ/PAUSE</option><option value="form">🎓 FORMATION</option><option value="piq">📞 PIQUET</option>`;
+        document.getElementById('listEq').innerHTML = members.map(m => `<div>${m} <span onclick="removeItem('members','${m}')">×</span></div>`).join('');
+        document.getElementById('listFct').innerHTML = fcts.map(f => `<div>${f} <span onclick="removeItem('fcts','${f}')">×</span></div>`).join('');
     }
     function openMod(id) { document.getElementById(id).style.display='block'; }
     function closeMod(id) { document.getElementById(id).style.display='none'; }
-    function addItem(type, id) {
-        const v = document.getElementById(id).value.trim();
-        if(v) {
-            if(type==='members') members.push(v); else fcts.push(v);
-            db.ref('planning_pdg/config').update({ members, fcts });
-            document.getElementById(id).value = '';
-        }
+    function addItem(t, id) { 
+        const v = document.getElementById(id).value; 
+        if(v) { if(t==='members') members.push(v); else fcts.push(v); db.ref('planning_pdg/config').update({members, fcts}); }
     }
-    function removeItem(type, v) {
-        if(confirm(`Supprimer ${v} ?`)) {
-            if(type==='members') members = members.filter(x => x!==v); else fcts = fcts.filter(x => x!==v);
-            db.ref('planning_pdg/config').update({ members, fcts });
-        }
-    }
-    function scNow() { const n = new Date(); document.getElementById('scA').scrollLeft = (n.getHours() * 2 * 120) - 240; }
-    function upLive() {
-        const n = new Date();
-        const l = 180 + (((n.getHours()*60)+n.getMinutes()) * 4);
-        const line = document.getElementById('nowL');
-        if(line) line.style.left = l+"px";
-        document.getElementById('clock').innerText = n.toLocaleTimeString('fr-FR');
-    }
+    function removeItem(t, v) { if(confirm('Supprimer?')) { if(t==='members') members=members.filter(x=>x!==v); else fcts=fcts.filter(x=>x!==v); db.ref('planning_pdg/config').update({members, fcts}); }}
+    function scNow() { const n = new Date(); document.getElementById('scA').scrollLeft = (n.getHours()*240)-240; }
+    function upLive() { const n = new Date(); document.getElementById('nowL').style.left = (180 + (((n.getHours()*60)+n.getMinutes())*4)) + "px"; document.getElementById('clock').innerText = n.toLocaleTimeString('fr-FR'); }
 </script>
 </body>
 </html>
