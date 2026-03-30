@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>CENSECO 2026 - MASTER PLANNING V2.7</title>
+    <title>CENSECO 2026 - MASTER PLANNING V2.8</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
@@ -13,7 +13,7 @@
         .ig { display: flex; flex-direction: column; gap: 3px; }
         label { font-size: 0.65em; font-weight: 900; color: var(--fids); text-transform: uppercase; }
         select, input { background: #0f172a; border: 1px solid #4338ca; color: white; padding: 6px; border-radius: 4px; font-weight: bold; }
-        .btn-v { background: #15803d; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: 900; cursor: pointer; }
+        .btn-v { background: #15803d !important; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: 900; cursor: pointer; }
         .btn-nav { background: #334155; color: white; border: 1px solid var(--fids); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 900; }
         .plan-wrap { flex: 1; overflow: auto; padding: 20px; position: relative; scroll-behavior: smooth; }
         .grid { display: grid; grid-template-columns: var(--lab-w) repeat(48, var(--col-w)); background: var(--card); border: 1px solid #334155; position: relative; width: max-content; }
@@ -51,8 +51,8 @@
 
 <div class="plan-wrap" id="scA"><div class="grid" id="grM"></div></div>
 
-<div id="modEq" class="modal"><h4>Équipe</h4><input type="text" id="newN" style="width:100%"><button onclick="addItem('members', 'newN')" style="width:100%; margin-top:10px">Ajouter</button><div id="listEq" style="max-height:200px; overflow:auto; margin-top:10px;"></div><button onclick="closeMod('modEq')" style="width:100%; margin-top:10px;">Fermer</button></div>
-<div id="modFct" class="modal"><h4>Fonctions</h4><input type="text" id="newF" style="width:100%"><button onclick="addItem('fcts', 'newF')" style="width:100%; margin-top:10px">Ajouter</button><div id="listFct" style="max-height:200px; overflow:auto; margin-top:10px;"></div><button onclick="closeMod('modFct')" style="width:100%; margin-top:10px;">Fermer</button></div>
+<div id="modEq" class="modal"><h4>Équipe</h4><input type="text" id="newN" style="width:100%"><button onclick="addItem('members', 'newN')" style="width:100%; margin-top:10px">Ajouter</button><div id="listEq"></div><button onclick="closeMod('modEq')">Fermer</button></div>
+<div id="modFct" class="modal"><h4>Fonctions</h4><input type="text" id="newF" style="width:100%"><button onclick="addItem('fcts', 'newF')" style="width:100%; margin-top:10px">Ajouter</button><div id="listFct"></div><button onclick="closeMod('modFct')">Fermer</button></div>
 
 <script>
     const firebaseConfig = { apiKey: "AIzaSyA7zWuD_8yzhWARz-lSdHmDrcr7M9kHFHU", authDomain: "censeco-2026.firebaseapp.com", databaseURL: "https://censeco-2026-default-rtdb.europe-west1.firebasedatabase.app", projectId: "censeco-2026", storageBucket: "censeco-2026.firebasestorage.app", messagingSenderId: "1030152312862", appId: "1:1030152312862:web:9618132ec2bcfc7831b60f" };
@@ -61,7 +61,7 @@
 
     let fcts = []; let members = []; let shifts = [];
     const clrs = ["#4338ca", "#059669", "#d97706", "#7c3aed", "#be185d", "#0369a1", "#1e40af", "#065f46", "#92400e", "#6b21a8", "#b91c1c"];
-    const specialRows = ["cng", "form", "piq", "ho"];
+    const specialRows = ["ho", "piq", "form", "cng"];
 
     window.onload = () => {
         document.getElementById('planDate').value = new Date().toISOString().split('T')[0];
@@ -94,7 +94,7 @@
     function initG() {
         const g = document.getElementById('grM');
         g.innerHTML = "";
-        let h = `<div class="h-time" style="position:sticky; left:0; z-index:21; border-right:2px solid var(--fids)">EN SERVICE - OPÉRATIONNEL</div>`;
+        let h = `<div class="h-time" style="position:sticky; left:0; z-index:21; border-right:2px solid var(--fids)">SERVICE - OPÉRATIONNEL</div>`;
         for(let i=0; i<48; i++) {
             let hr = Math.floor(i/2).toString().padStart(2,'0'), mn = (i%2===0)?"00":"30";
             h += `<div class="h-time">${hr}:${mn}</div>`;
@@ -113,16 +113,18 @@
     }
 
     function renderS() {
-        let levels = { cng: [], form: [], piq: [], ho: [] };
+        let levels = { ho: [], piq: [], form: [], cng: [] };
         shifts.forEach(s => {
             const d = document.createElement('div');
             const isSpec = specialRows.includes(s.pVal);
             d.className = 's-blk' + (isSpec ? " special" : "");
             d.style.width = (s.dur*120-8)+"px";
             d.innerHTML = `<span>${s.n.toUpperCase()}</span><button class="b-del" onclick="delS(${s.id})">×</button>`;
+            
             if(isSpec) {
                 const cC = document.getElementById('cC-' + s.pVal);
                 const lC = document.getElementById('l-' + s.pVal);
+                if(!cC) return;
                 let lv = 0;
                 while(levels[s.pVal][lv] && levels[s.pVal][lv].some(b => !(s.sI >= b.e || (s.sI + s.dur) <= b.s))) lv++;
                 if(!levels[s.pVal][lv]) levels[s.pVal][lv] = [];
