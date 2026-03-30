@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>CENSECO 2026 - MASTER PLANNING V2.9</title>
+    <title>CENSECO 2026 - MASTER PLANNING V3.0</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
@@ -43,7 +43,7 @@
         <button class="btn-v" onclick="addSh()">VALIDER</button>
         <div style="margin-left: auto; display: flex; gap: 8px;">
             <button onclick="scNow()" style="background:var(--live); color:white; border:none; padding:10px 15px; border-radius:4px; cursor:pointer; font-weight:900;">🎯 LIVE</button>
-            <button onclick="openMod('modEq')" style="background:#334155; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer; font-size:0.7em;">👥 ÉQUIPE / RAZ</button>
+            <button onclick="openMod('modEq')" style="background:#334155; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer; font-size:0.7em;">👥 ÉQUIPE</button>
             <button onclick="openMod('modFct')" style="background:#334155; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer; font-size:0.7em;">🛠️ FONCTIONS</button>
         </div>
     </div>
@@ -55,9 +55,7 @@
     <h4>Gestion Équipe</h4>
     <input type="text" id="newN" style="width:100%" placeholder="Nom">
     <button onclick="addItem('members', 'newN')" style="width:100%; margin-top:10px">Ajouter</button>
-    <div id="listEq" style="max-height:150px; overflow:auto; margin:10px 0; border:1px solid #334155; padding:5px;"></div>
-    <hr style="border-color:#334155;">
-    <button onclick="globalReset()" style="width:100%; background:var(--live); color:white; border:none; padding:10px; border-radius:4px; font-weight:900; cursor:pointer;">🧨 RAZ TOUT LE PLANNING</button>
+    <div id="listEq" style="max-height:200px; overflow:auto; margin-top:10px;"></div>
     <button onclick="closeMod('modEq')" style="width:100%; margin-top:10px;">Fermer</button>
 </div>
 
@@ -77,6 +75,7 @@
     let fcts = []; let members = []; let shifts = [];
     const clrs = ["#4338ca", "#059669", "#d97706", "#7c3aed", "#be185d", "#0369a1", "#1e40af", "#065f46", "#92400e", "#6b21a8", "#b91c1c"];
     const specialRows = ["ho", "piq", "form", "cng"];
+    let firstLoad = true;
 
     window.onload = () => {
         document.getElementById('planDate').value = new Date().toISOString().split('T')[0];
@@ -102,6 +101,11 @@
             db.ref('planning_pdg/' + date).on('value', snapD => {
                 shifts = (snapD.val() && snapD.val().shifts) ? snapD.val().shifts : [];
                 initG();
+                // Autofocus sur le Live au premier chargement ou changement de jour
+                if(firstLoad || date === new Date().toISOString().split('T')[0]) {
+                    setTimeout(scNow, 300);
+                    firstLoad = false;
+                }
             });
         });
     }
@@ -175,25 +179,6 @@
         db.ref('planning_pdg/' + date).set({ shifts });
     }
 
-    // --- FONCTION DE NETTOYAGE GLOBAL ---
-    function globalReset() {
-        if(confirm("❗ ATTENTION : Cela va effacer TOUTES les planifications de TOUTES les dates. Vos noms d'équipe et fonctions seront conservés. Continuer ?")) {
-            // On récupère toutes les clés du planning sauf 'config'
-            db.ref('planning_pdg').once('value', snap => {
-                const data = snap.val();
-                if(data) {
-                    Object.keys(data).forEach(key => {
-                        if(key !== 'config') {
-                            db.ref('planning_pdg/' + key).remove();
-                        }
-                    });
-                    alert("✅ Planning entièrement vidé.");
-                    loadDay();
-                }
-            });
-        }
-    }
-
     function tToI(t) { const [h,m] = t.split(':').map(Number); return h*2 + (m>=30?1:0); }
     function updateSels() {
         document.getElementById('selP').innerHTML = members.map(m => `<option>${m}</option>`).join('');
@@ -206,15 +191,14 @@
     function closeMod(id) { document.getElementById(id).style.display='none'; }
     function addItem(t, id) { const v = document.getElementById(id).value; if(v) { if(t==='members') members.push(v); else fcts.push(v); db.ref('planning_pdg/config').update({members, fcts}); document.getElementById(id).value=''; } }
     function removeItem(t, v) { if(confirm('Supprimer?')) { if(t==='members') members=members.filter(x=>x!==v); else fcts=fcts.filter(x=>x!==v); db.ref('planning_pdg/config').update({members, fcts}); }}
+    
     function scNow() { 
         const today = new Date().toISOString().split('T')[0];
-        if (document.getElementById('planDate').value !== today) { document.getElementById('planDate').value = today; loadDay(); }
-        setTimeout(() => {
-            const n = new Date();
-            const scrollPos = (n.getHours() * 240) + (n.getMinutes() * 4) - (window.innerWidth / 2);
-            document.getElementById('scA').scrollLeft = Math.max(0, scrollPos);
-        }, 100); 
+        const n = new Date();
+        const scrollPos = (n.getHours() * 240) + (n.getMinutes() * 4) - (window.innerWidth / 2);
+        document.getElementById('scA').scrollLeft = Math.max(0, scrollPos);
     }
+    
     function upLive() {
         const n = new Date(); const l = 220 + (((n.getHours()*60)+n.getMinutes()) * 4);
         const line = document.getElementById('nowL'); if(line) line.style.left = l+"px";
