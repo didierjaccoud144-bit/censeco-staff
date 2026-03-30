@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENSECO - MONITOR LIVE V6.8</title>
+    <title>CENSECO - MONITOR LIVE V6.9</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
@@ -34,7 +34,7 @@
         .upcoming .status-dot { background: var(--next); box-shadow: 0 0 10px var(--next); }
         .form-card .status-dot { background: var(--form); box-shadow: 0 0 10px var(--form); }
 
-        .role { font-size: 0.65em; font-weight: 900; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 4px; }
+        .role { font-size: 0.65em; font-weight: 900; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .name { font-size: 1.1em; font-weight: 900; color: white; line-height: 1.2; }
         .date-tag { font-size: 0.6em; opacity: 0.5; display: block; margin-top: 5px; font-weight: bold; }
         .time { font-size: 0.8em; font-weight: 800; color: var(--fids); margin-top: 10px; display: block; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 6px; text-align: center; }
@@ -89,12 +89,17 @@
 
         shifts.forEach(s => {
             const isToday = (s.day === today);
-            const roleName = specialNames[s.pVal] || (dynamicFcts[s.pVal] || "STAFF");
-            const dateFmt = new Date(s.day).toLocaleDateString('fr-FR', {day:'numeric', month:'short'}).toUpperCase();
             const endI = s.sI + s.dur;
             if (isToday && nowI >= endI) return;
 
-            const card = (typeClass) => `<div class="staff-card ${typeClass}"><div class="status-dot"></div><span class="role">${roleName}</span><span class="name">${s.n.toUpperCase()}</span><span class="date-tag">🗓️ ${dateFmt}</span><span class="time">🕒 ${iToT(s.sI)} - ${iToT(endI)}</span></div>`;
+            // RECCUPERATION DU NOM DE LA FONCTION :
+            // Si c'est une clé spéciale (ho, piq, etc.), on prend le nom fixe. 
+            // Sinon, on prend l'index dans dynamicFcts.
+            let roleName = specialNames[s.pVal] || dynamicFcts[parseInt(s.pVal)] || "FONCTION INCONNUE";
+
+            const card = (typeClass) => `<div class="staff-card ${typeClass}"><div class="status-dot"></div><span class="role">${roleName}</span><span class="name">${s.n.toUpperCase()}</span><span class="date-tag">🗓️ ${dateFmt(s.day)}</span><span class="time">🕒 ${iToT(s.sI)} - ${iToT(endI)}</span></div>`;
+
+            function dateFmt(d) { return new Date(d).toLocaleDateString('fr-FR', {day:'numeric', month:'short'}).toUpperCase(); }
 
             if (s.pVal === "ho") { hHo += card("ho-card"); }
             else if (s.pVal === "piq") { hPiq += card("piq-card"); }
