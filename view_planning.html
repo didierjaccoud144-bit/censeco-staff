@@ -3,24 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENSECO - MONITOR LIVE V6.7</title>
+    <title>CENSECO - MONITOR LIVE V6.8</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
         :root { 
             --bg: #020617; --fids: #ffcc00; --accent: #38bdf8; 
             --on: #22c55e; --off: #64748b; --next: #a855f7;
-            --form: #f59e0b; --piq: #10b981;
+            --form: #f59e0b; --piq: #10b981; --ho: #94a3b8;
         }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; box-sizing: border-box; }
         header { border-bottom: 3px solid var(--fids); padding-bottom: 15px; margin-bottom: 10px; text-align: center; }
         .clock { font-family: monospace; font-size: 2.8em; font-weight: 900; color: var(--fids); line-height: 1; }
-        
         section { margin-bottom: 30px; }
         h2 { text-transform: uppercase; font-size: 0.85em; letter-spacing: 2px; border-left: 5px solid; padding-left: 12px; margin: 25px 0 15px 0; }
         
-        /* Couleurs de sections */
         .sec-on { color: var(--on); border-color: var(--on); }
+        .sec-ho { color: var(--ho); border-color: var(--ho); }
         .sec-piq { color: var(--piq); border-color: var(--piq); }
         .sec-next { color: var(--next); border-color: var(--next); }
         .sec-form { color: var(--form); border-color: var(--form); }
@@ -28,9 +27,9 @@
 
         .grid-staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 12px; }
         .staff-card { background: #1e293b; border-radius: 12px; padding: 15px; border: 1px solid rgba(255,255,255,0.1); position: relative; }
-        
         .status-dot { position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; border-radius: 50%; background: var(--off); }
         .active .status-dot { background: var(--on); box-shadow: 0 0 10px var(--on); }
+        .ho-card .status-dot { background: var(--ho); box-shadow: 0 0 10px var(--ho); }
         .piq-card .status-dot { background: var(--piq); box-shadow: 0 0 10px var(--piq); }
         .upcoming .status-dot { background: var(--next); box-shadow: 0 0 10px var(--next); }
         .form-card .status-dot { background: var(--form); box-shadow: 0 0 10px var(--form); }
@@ -49,9 +48,9 @@
     <div id="fullDate" style="font-size: 1em; opacity: 0.8; margin-top: 10px; font-weight: 600;"></div>
 </header>
 
-<section><h2 class="sec-on">🟢 EN POSTE</h2><div class="grid-staff" id="staffOn"></div></section>
+<section><h2 class="sec-on">🟢 EN SERVICE - OPÉRATIONNEL</h2><div class="grid-staff" id="staffOn"></div></section>
+<section><h2 class="sec-ho">🛠️ EN SERVICE - HORS OPÉRATIONNEL</h2><div class="grid-staff" id="staffHo"></div></section>
 <section><h2 class="sec-piq">📞 PIQUET EN COURS (J / J+1)</h2><div class="grid-staff" id="staffPiq"></div></section>
-
 <section><h2 class="sec-next">⏳ PROCHAINS TOURNUS (H+24)</h2><div class="grid-staff" id="staffNext"></div></section>
 <section><h2 class="sec-form">🎓 FORMATION</h2><div class="grid-staff" id="staffForm"></div></section>
 <section><h2 class="sec-off">⚪ REPOS / CONGÉS</h2><div class="grid-staff" id="staffOff"></div></section>
@@ -62,29 +61,22 @@
     const db = firebase.database();
 
     let dynamicFcts = [];
-    const specialNames = { cng: "🏖️ CONGÉ/PAUSE", form: "🎓 FORMATION", piq: "📞 PIQUET" };
+    const specialNames = { cng: "🏖️ CONGÉ/PAUSE", form: "🎓 FORMATION", piq: "📞 PIQUET", ho: "🛠️ HORS OPÉRATIONNEL" };
 
     function iToT(i) { return `${Math.floor(i/2).toString().padStart(2,'0')}:${(i%2===0)?"00":"30"}`; }
 
     function update() {
-        const now = new Date();
-        const today = now.toISOString().split('T')[0];
+        const now = new Date(); const today = now.toISOString().split('T')[0];
         const tomorrow = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
         const nowI = (now.getHours() * 2) + (now.getMinutes() >= 30 ? 1 : 0);
 
         db.ref('planning_pdg/config/fcts').once('value', snapF => {
             dynamicFcts = snapF.val() || [];
             let allShifts = [];
-
-            Promise.all([
-                db.ref('planning_pdg/' + today).once('value'),
-                db.ref('planning_pdg/' + tomorrow).once('value')
-            ]).then(snaps => {
+            Promise.all([db.ref('planning_pdg/' + today).once('value'), db.ref('planning_pdg/' + tomorrow).once('value')]).then(snaps => {
                 snaps.forEach((snap, idx) => {
                     const dayDate = idx === 0 ? today : tomorrow;
-                    if(snap.val() && snap.val().shifts) {
-                        snap.val().shifts.forEach(s => allShifts.push({...s, day: dayDate}));
-                    }
+                    if(snap.val() && snap.val().shifts) snap.val().shifts.forEach(s => allShifts.push({...s, day: dayDate}));
                 });
                 render(allShifts, nowI, today);
             });
@@ -92,7 +84,7 @@
     }
 
     function render(shifts, nowI, today) {
-        let hOn = "", hPiq = "", hNext = "", hForm = "", hOff = "";
+        let hOn = "", hHo = "", hPiq = "", hNext = "", hForm = "", hOff = "";
         shifts.sort((a,b) => (a.day === b.day) ? (a.sI - b.sI) : (a.day > b.day ? 1 : -1));
 
         shifts.forEach(s => {
@@ -100,45 +92,32 @@
             const roleName = specialNames[s.pVal] || (dynamicFcts[s.pVal] || "STAFF");
             const dateFmt = new Date(s.day).toLocaleDateString('fr-FR', {day:'numeric', month:'short'}).toUpperCase();
             const endI = s.sI + s.dur;
-            
             if (isToday && nowI >= endI) return;
 
-            const card = (typeClass) => `<div class="staff-card ${typeClass}">
-                <div class="status-dot"></div>
-                <span class="role">${roleName}</span>
-                <span class="name">${s.n.toUpperCase()}</span>
-                <span class="date-tag">🗓️ ${dateFmt}</span>
-                <span class="time">🕒 ${iToT(s.sI)} - ${iToT(endI)}</span>
-            </div>`;
+            const card = (typeClass) => `<div class="staff-card ${typeClass}"><div class="status-dot"></div><span class="role">${roleName}</span><span class="name">${s.n.toUpperCase()}</span><span class="date-tag">🗓️ ${dateFmt}</span><span class="time">🕒 ${iToT(s.sI)} - ${iToT(endI)}</span></div>`;
 
-            if (s.pVal === "piq") {
-                hPiq += card("piq-card");
-            } else if (s.pVal === "form") {
-                hForm += card("form-card");
-            } else if (s.pVal === "cng") {
-                hOff += card("off-card");
-            } else if (isToday && nowI >= s.sI && nowI < endI) {
-                hOn += card("active");
-            } else {
+            if (s.pVal === "ho") { hHo += card("ho-card"); }
+            else if (s.pVal === "piq") { hPiq += card("piq-card"); }
+            else if (s.pVal === "form") { hForm += card("form-card"); }
+            else if (s.pVal === "cng") { hOff += card("off-card"); }
+            else if (isToday && nowI >= s.sI && nowI < endI) { hOn += card("active"); }
+            else {
                 const absoluteStart = (isToday ? s.sI : s.sI + 48);
-                if (absoluteStart > nowI && absoluteStart <= (nowI + 48)) {
-                    hNext += card("upcoming");
-                }
+                if (absoluteStart > nowI && absoluteStart <= (nowI + 48)) hNext += card("upcoming");
             }
         });
 
-        document.getElementById('staffOn').innerHTML = hOn || '<div class="empty-msg">Aucun effectif en poste</div>';
+        document.getElementById('staffOn').innerHTML = hOn || '<div class="empty-msg">Aucun effectif opérationnel</div>';
+        document.getElementById('staffHo').innerHTML = hHo || '<div class="empty-msg">Aucun effectif hors opérationnel</div>';
         document.getElementById('staffPiq').innerHTML = hPiq || '<div class="empty-msg">Aucun piquet</div>';
         document.getElementById('staffNext').innerHTML = hNext || '<div class="empty-msg">Aucune relève dans les 24h</div>';
         document.getElementById('staffForm').innerHTML = hForm || '<div class="empty-msg">Aucune formation</div>';
         document.getElementById('staffOff').innerHTML = hOff || '<div class="empty-msg">-</div>';
     }
 
-    setInterval(update, 15000);
-    update();
+    setInterval(update, 15000); update();
     setInterval(() => {
-        const n = new Date();
-        document.getElementById('clock').innerText = n.toLocaleTimeString('fr-FR');
+        const n = new Date(); document.getElementById('clock').innerText = n.toLocaleTimeString('fr-FR');
         document.getElementById('fullDate').innerText = n.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
     }, 1000);
 </script>
