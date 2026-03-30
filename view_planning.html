@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENSECO - MONITOR LIVE V6.9</title>
+    <title>CENSECO - MONITOR LIVE V7.0</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
@@ -92,23 +92,34 @@
             const endI = s.sI + s.dur;
             if (isToday && nowI >= endI) return;
 
-            // RECCUPERATION DU NOM DE LA FONCTION :
-            // Si c'est une clé spéciale (ho, piq, etc.), on prend le nom fixe. 
-            // Sinon, on prend l'index dans dynamicFcts.
             let roleName = specialNames[s.pVal] || dynamicFcts[parseInt(s.pVal)] || "FONCTION INCONNUE";
+            const dateFmt = (d) => new Date(d).toLocaleDateString('fr-FR', {day:'numeric', month:'short'}).toUpperCase();
 
             const card = (typeClass) => `<div class="staff-card ${typeClass}"><div class="status-dot"></div><span class="role">${roleName}</span><span class="name">${s.n.toUpperCase()}</span><span class="date-tag">🗓️ ${dateFmt(s.day)}</span><span class="time">🕒 ${iToT(s.sI)} - ${iToT(endI)}</span></div>`;
 
-            function dateFmt(d) { return new Date(d).toLocaleDateString('fr-FR', {day:'numeric', month:'short'}).toUpperCase(); }
+            // LOGIQUE DE RÉPARTITION TEMPORELLE
+            const isCurrent = (isToday && nowI >= s.sI && nowI < endI);
+            const absoluteStart = (isToday ? s.sI : s.sI + 48);
+            const isFutureH24 = (absoluteStart > nowI && absoluteStart <= (nowI + 48));
 
-            if (s.pVal === "ho") { hHo += card("ho-card"); }
-            else if (s.pVal === "piq") { hPiq += card("piq-card"); }
-            else if (s.pVal === "form") { hForm += card("form-card"); }
-            else if (s.pVal === "cng") { hOff += card("off-card"); }
-            else if (isToday && nowI >= s.sI && nowI < endI) { hOn += card("active"); }
-            else {
-                const absoluteStart = (isToday ? s.sI : s.sI + 48);
-                if (absoluteStart > nowI && absoluteStart <= (nowI + 48)) hNext += card("upcoming");
+            if (s.pVal === "ho") {
+                if (isCurrent) hHo += card("ho-card");
+                else if (isFutureH24) hNext += card("upcoming");
+            }
+            else if (s.pVal === "piq") { 
+                hPiq += card("piq-card"); // Le piquet reste dans sa zone dédiée J/J+1
+            }
+            else if (s.pVal === "form") { 
+                hForm += card("form-card"); 
+            }
+            else if (s.pVal === "cng") { 
+                hOff += card("off-card"); 
+            }
+            else if (isCurrent) { 
+                hOn += card("active"); 
+            }
+            else if (isFutureH24) { 
+                hNext += card("upcoming"); 
             }
         });
 
